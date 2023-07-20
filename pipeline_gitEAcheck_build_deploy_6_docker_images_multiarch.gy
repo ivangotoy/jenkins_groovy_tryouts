@@ -1,0 +1,176 @@
+// -- README:
+// --
+// -- TWO JENKINS NODES: 1. MASTER RPI4 (AARCH64) AND 2. AMD RYZEN PC (X86_64)
+// --
+// -- GITEA NOT GITHUB BASED GIT REPOSITORIES FOR DOCKER AS CONTENT AS CODE
+// --
+// -- 3 DOCKER IMAGES: 1. QUAKE3 SERVER | 2. V2RAYA 20 CONFIGURED PROXIES TUNNES UP & RUNNING WITH WEB INTERFACE 3. OPENBULLET2 CONSOLE VERSION IN LINUX
+// --
+// -- CLEANUP WORKSPACES - IN PARALLEL
+// --
+// -- CHECKOUT ARM64 AND AMD64 REPOS (FROM GITEA) - IN PARALLEL
+// --
+// -- BUILD ARM64 AND AMD64 DOCKER IMAGES - IN PARALLEL
+// --
+// -- PUSH ARM64 AND AMD64 TO A PRIVATE DOCKER REGISTRY NOT LEAKING ANY PRIVATE DATA - IN PARALLEL
+// --
+// -- FOR LESS THAN 25 MINUTES (MOST SPENT ON BUILDING ON RPI4) YOU CAN HAVE NOT 1 BUT 3 DOCKER IMAGES FOR YOUR PROJECTS.  
+// --
+// -- SEE THIS REFERENCE IMAGE (IN THIS GITHUB REPO):
+// --
+// -- pipeline_gitEAcheck_build_deploy_6_docker_images_multiarch.png
+// --
+// -- FURTHER READING ON THESE 3 PARTICULAR DOCKER IMAGES HERE:
+// --
+// -- https://digtvbg.com/files/MEDIA/DOCKER-INFO.txt
+// --
+pipeline {
+    agent none
+
+    environment {
+        GITEA_API_KEY = credentials('gitea_jenkins_api_token')
+        GITEA_REPO_ARM64 = 'gitea.com/ivangotoy/docker_images_arm64.git'
+        GITEA_REPO_AMD64 = 'gitea.com/ivangotoy/docker_images_amd64.git'
+        registryURL = "digtvbg.com:5000"
+        credentialsID = "docker_registry_digtvbg_5000_credentials"
+        imageName1 = "ob2-ubuntu-image-arm64"
+        imageName2 = "q3e-ded-arm64"
+        imageName3 = "v2raya-ubuntu-arm64"
+        imageName4 = "ob2-ubuntu-image-amd64"
+        imageName5 = "q3e-ded-amd64"
+        imageName6 = "v2raya-ubuntu-amd64"
+    }
+    stages {
+        stage('Parallel Workspace Clean') {
+            parallel {
+                stage('Clean ARM64'){
+                    agent {
+                        node {
+                            label 'rpi4'
+                        }
+                    }
+                    steps {
+                        script {
+                    deleteDir()
+                        }
+                    }
+                }
+                stage('Clean AMD64'){
+                    agent {
+                        node {
+                            label 'ryzen9'
+                        }
+                    }
+                    steps {
+                        script {
+                    deleteDir()
+                        }
+                    }
+                }
+            }
+        }
+        stage('Parallel clone from GITEA') {
+            parallel {
+                stage('Clone ARM64') {
+                    agent {
+                        node {
+                            label 'rpi4'
+                        }
+                    }
+                    steps {
+                        sh "git clone -b main https://${GITEA_API_KEY}@${GITEA_REPO_ARM64}"
+                    }
+                }
+                stage('Clone AMD64') {
+                    agent {
+                        node {
+                            label 'ryzen9'
+                        }
+                    }
+                    steps {
+                        sh "git clone -b main https://${GITEA_API_KEY}@${GITEA_REPO_AMD64}"
+                    }
+                }
+            }
+        }
+        stage('Parallel build ARM64 and AMD64') {
+            parallel {
+                stage('Build ARM64') {
+                    agent {
+                        node {
+                            label 'rpi4'
+                        }
+                    }
+                    steps {
+                        sh 'docker kill $(docker ps -q) || true'
+                        sh 'sleep 5'
+                        sh 'docker system prune -af'
+                        sh 'docker pull --platform=linux/arm64 ubuntu'
+                        sh 'docker build -q -t $imageName1 docker_images_arm64/ARM64/ob2-ubuntu-image'
+                        sh 'docker tag $imageName1 $registryURL/$imageName1'
+                        sh 'docker build -q -t $imageName2 docker_images_arm64/ARM64/quake3-ubuntu-image'
+                        sh 'docker tag $imageName2 $registryURL/$imageName2'
+                        sh 'docker build -q -t $imageName3 docker_images_arm64/ARM64/v2raya-ubuntu-image'
+                        sh 'docker tag $imageName3 $registryURL/$imageName3'
+                        sh 'docker run --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $imageName2 q3cpma'
+                        sh 'docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $imageName2 quake3'
+                    }
+                }
+                stage('Build AMD64') {
+                    agent {
+                        node {
+                            label 'ryzen9'
+                        }
+                    }
+                    steps {
+                        sh 'docker kill $(docker ps -q) || true'
+                        sh 'sleep 5'
+                        sh 'docker system prune -af'
+                        sh 'docker pull --platform=linux/amd64 ubuntu'
+                        sh 'docker build -q -t $imageName4 docker_images_amd64/AMD64/ob2-ubuntu-image'
+                        sh 'docker tag $imageName4 $registryURL/$imageName4'
+                        sh 'docker build -q -t $imageName5 docker_images_amd64/AMD64/quake3-ubuntu-image'
+                        sh 'docker tag $imageName5 $registryURL/$imageName5'
+                        sh 'docker build -q -t $imageName6 docker_images_amd64/AMD64/v2raya-ubuntu-image'
+                        sh 'docker tag $imageName6 $registryURL/$imageName6'
+                        sh 'docker run --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $imageName5 q3cpma'
+                        sh 'docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $imageName5 quake3'
+                    }
+                }
+            }
+        }
+
+        stage('Parallel PUSH to Registry') {
+            parallel {
+                stage('Push ARM64') {
+                    agent {
+                        node {
+                            label 'rpi4'
+                        }
+                    }
+                    steps {
+                        withCredentials([usernamePassword(credentialsId: credentialsID, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                            sh "echo $PASSWORD | docker login -u $USERNAME --password-stdin $registryURL"
+                        }
+
+                        sh "docker push $registryURL/$imageName1 && docker push $registryURL/$imageName2 && docker push $registryURL/$imageName3"
+                    }
+                }
+                stage('Push AMD64') {
+                    agent {
+                        node {
+                            label 'ryzen9'
+                        }
+                    }
+                    steps {
+                        withCredentials([usernamePassword(credentialsId: credentialsID, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                            sh "echo $PASSWORD | docker login -u $USERNAME --password-stdin $registryURL"
+                        }
+
+                        sh "docker push $registryURL/$imageName4 && docker push $registryURL/$imageName5 && docker push $registryURL/$imageName6"
+                    }
+                }
+            }
+        }
+    }
+}
