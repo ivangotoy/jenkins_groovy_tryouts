@@ -124,11 +124,11 @@ pipeline {
 						sh 'docker tag $imageName2 $registryURL/$imageName2'
 						sh 'docker build -q -t $imageName3 docker_images_arm64/ARM64/v2raya-ubuntu-image'
 						sh 'docker tag $imageName3 $registryURL/$imageName3'
-						sh 'docker run --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $imageName2 q3cpma'
-						sh 'docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $imageName2 quake3'
 						sh 'docker build -q -t $imageName4 docker_images_arm64/ARM64/dnscrypt-v2-ubuntu-image'
 						sh 'docker tag $imageName4 $registryURL/$imageName4'
 						sh 'docker run --restart=always -p 5353:5353 --add-host=host.docker.internal:host-gateway --name "DNSCRYPT-PROXY-V2" -dit $imageName4'
+						sh 'docker run --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $imageName2 q3cpma'
+						sh 'docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $imageName2 quake3'
 						sh ''
 					}
 				}
@@ -151,11 +151,11 @@ pipeline {
 						sh 'docker tag $imageName6 $registryURL/$imageName6'
 						sh 'docker build -q -t $imageName7 docker_images_amd64/AMD64/v2raya-ubuntu-image'
 						sh 'docker tag $imageName7 $registryURL/$imageName7'
-						sh 'docker run --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $imageName7 q3cpma'
-						sh 'docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $imageName7 quake3'
-						sh 'docker build -q -t $imageName8 docker_images_arm64/ARM64/dnscrypt-v2-ubuntu-image'
+						sh 'docker build -q -t $imageName8 docker_images_amd64/AMD64/dnscrypt-v2-ubuntu-image'
 						sh 'docker tag $imageName8 $registryURL/$imageName8'
 						sh 'docker run --restart=always -p 5353:5353 --add-host=host.docker.internal:host-gateway --name "DNSCRYPT-PROXY-V2" -dit $imageName8'
+						sh 'docker run --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $imageName6 q3cpma'
+						sh 'docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $imageName6 quake3'
 					}
 				}
 			}
