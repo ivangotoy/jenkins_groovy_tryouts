@@ -128,7 +128,7 @@ pipeline {
 						sh 'docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $imageName2 quake3'
 						sh 'docker build -q -t $imageName4 docker_images_arm64/ARM64/dnscrypt-v2-ubuntu-image'
 						sh 'docker tag $imageName4 $registryURL/$imageName4'
-						sh 'docker run --restart=always -p 5353:5353 --name "DNSCRYPT-PROXY-V2" -dit $imageName4'
+						sh 'docker run --restart=always -p 5353:5353 --add-host=host.docker.internal:host-gateway --name "DNSCRYPT-PROXY-V2" -dit $imageName4'
 						sh ''
 					}
 				}
@@ -155,7 +155,7 @@ pipeline {
 						sh 'docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $imageName7 quake3'
 						sh 'docker build -q -t $imageName8 docker_images_arm64/ARM64/dnscrypt-v2-ubuntu-image'
 						sh 'docker tag $imageName8 $registryURL/$imageName8'
-						sh 'docker run --restart=always -p 5353:5353 --name "DNSCRYPT-PROXY-V2" -dit $imageName8'
+						sh 'docker run --restart=always -p 5353:5353 --add-host=host.docker.internal:host-gateway --name "DNSCRYPT-PROXY-V2" -dit $imageName8'
 					}
 				}
 			}
