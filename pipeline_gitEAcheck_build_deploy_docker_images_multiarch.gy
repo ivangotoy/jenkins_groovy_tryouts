@@ -86,7 +86,7 @@ pipeline {
 					}
 
 					steps {
-						sh "git clone -b main https://${GITEA_API_KEY}@${GITEA_REPO_ARM64}"
+						sh "git clone --quiet --depth 1 -b main --single-branch https://${GITEA_API_KEY}@${GITEA_REPO_ARM64}"
 					}
 				}
 
@@ -98,7 +98,7 @@ pipeline {
 					}
 
 					steps {
-						sh "git clone -b main https://${GITEA_API_KEY}@${GITEA_REPO_AMD64}"
+						sh "git clone --quiet --depth 1 -b main --single-branch https://${GITEA_API_KEY}@${GITEA_REPO_AMD64}"
 					}
 				}
 			}
