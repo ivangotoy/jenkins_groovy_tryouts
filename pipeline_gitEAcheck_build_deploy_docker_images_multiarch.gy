@@ -117,7 +117,7 @@ pipeline {
 						sh 'docker kill $(docker ps -q) || true'
 						sh 'sleep 10'
 						sh 'docker system prune -af'
-						sh 'docker pull --platform=linux/arm64 ubuntu'
+						sh 'docker pull -q --platform=linux/arm64 ubuntu:rolling'
 						sh 'docker build -q -t $imageName1 docker_images_arm64/ARM64/ob2-ubuntu-image'
 						sh 'docker tag $imageName1 $registryURL/$imageName1'
 						sh 'docker build -q -t $imageName2 docker_images_arm64/ARM64/quake3-ubuntu-image'
@@ -126,9 +126,9 @@ pipeline {
 						sh 'docker tag $imageName3 $registryURL/$imageName3'
 						sh 'docker build -q -t $imageName4 docker_images_arm64/ARM64/dnscrypt-v2-ubuntu-image'
 						sh 'docker tag $imageName4 $registryURL/$imageName4'
-						sh 'docker run --restart=always -p 5353:5353 --add-host=host.docker.internal:host-gateway --name "DNSCRYPT-PROXY-V2" -dit $imageName4'
-						sh 'docker run --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $imageName2 q3cpma'
-						sh 'docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $imageName2 quake3'
+						sh 'docker run -q --restart=always -p 5353:5353 --add-host=host.docker.internal:host-gateway --name "DNSCRYPT-PROXY-V2" -dit $imageName4'
+						sh 'docker run -q --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $imageName2 q3cpma'
+						sh 'docker run -q --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $imageName2 quake3'
 						sh ''
 					}
 				}
@@ -144,7 +144,7 @@ pipeline {
 						sh 'docker kill $(docker ps -q) || true'
 						sh 'sleep 5'
 						sh 'docker system prune -af'
-						sh 'docker pull --platform=linux/amd64 ubuntu'
+						sh 'docker pull -q --platform=linux/amd64 ubuntu:rolling'
 						sh 'docker build -q -t $imageName5 docker_images_amd64/AMD64/ob2-ubuntu-image'
 						sh 'docker tag $imageName5 $registryURL/$imageName5'
 						sh 'docker build -q -t $imageName6 docker_images_amd64/AMD64/quake3-ubuntu-image'
@@ -153,9 +153,9 @@ pipeline {
 						sh 'docker tag $imageName7 $registryURL/$imageName7'
 						sh 'docker build -q -t $imageName8 docker_images_amd64/AMD64/dnscrypt-v2-ubuntu-image'
 						sh 'docker tag $imageName8 $registryURL/$imageName8'
-						sh 'docker run --restart=always -p 5353:5353 --add-host=host.docker.internal:host-gateway --name "DNSCRYPT-PROXY-V2" -dit $imageName8'
-						sh 'docker run --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $imageName6 q3cpma'
-						sh 'docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $imageName6 quake3'
+						sh 'docker run -q --restart=always -p 5353:5353 --add-host=host.docker.internal:host-gateway --name "DNSCRYPT-PROXY-V2" -dit $imageName8'
+						sh 'docker run -q --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $imageName6 q3cpma'
+						sh 'docker run -q --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $imageName6 quake3'
 					}
 				}
 			}
