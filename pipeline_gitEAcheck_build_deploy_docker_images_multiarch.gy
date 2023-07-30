@@ -86,6 +86,7 @@ pipeline {
 					}
 
 					steps {
+					        sh "git config --global http.postBuffer 157286400"
 						sh "git clone --quiet --depth 1 -b main --single-branch https://${GITEA_API_KEY}@${GITEA_REPO_ARM64}"
 					}
 				}
@@ -98,6 +99,7 @@ pipeline {
 					}
 
 					steps {
+						sh "git config --global http.postBuffer 157286400"
 						sh "git clone --quiet --depth 1 -b main --single-branch https://${GITEA_API_KEY}@${GITEA_REPO_AMD64}"
 					}
 				}
