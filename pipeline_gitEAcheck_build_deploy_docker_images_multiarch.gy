@@ -48,6 +48,7 @@ pipeline {
 			parallel {
 				stage('Clean ARM64') {
 					agent {
+					options { timestamps () }
 						node {
 							label 'rpi4'
 						}
@@ -62,6 +63,7 @@ pipeline {
 
 				stage('Clean AMD64') {
 					agent {
+					options { timestamps () }
 						node {
 							label 'ryzen9'
 						}
@@ -80,6 +82,7 @@ pipeline {
 			parallel {
 				stage('Clone ARM64') {
 					agent {
+					options { timestamps () }
 						node {
 							label 'rpi4'
 						}
@@ -93,6 +96,7 @@ pipeline {
 
 				stage('Clone AMD64') {
 					agent {
+					options { timestamps () }
 						node {
 							label 'ryzen9'
 						}
@@ -110,6 +114,7 @@ pipeline {
 			parallel {
 				stage('Build ARM64') {
 					agent {
+					options { timestamps () }
 						node {
 							label 'rpi4'
 						}
@@ -131,12 +136,12 @@ pipeline {
 						sh 'docker run -q --restart=always -p 5353:5353 --add-host=host.docker.internal:host-gateway --name "DNSCRYPT-PROXY-V2" -dit $imageName4'
 						sh 'docker run -q --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $imageName2 q3cpma'
 						sh 'docker run -q --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $imageName2 quake3'
-						sh ''
 					}
 				}
 
 				stage('Build AMD64') {
 					agent {
+					options { timestamps () }
 						node {
 							label 'ryzen9'
 						}
@@ -167,6 +172,7 @@ pipeline {
 			parallel {
 				stage('Push ARM64') {
 					agent {
+					options { timestamps () }
 						node {
 							label 'rpi4'
 						}
@@ -183,6 +189,7 @@ pipeline {
 
 				stage('Push AMD64') {
 					agent {
+					options { timestamps () }
 						node {
 							label 'ryzen9'
 						}
