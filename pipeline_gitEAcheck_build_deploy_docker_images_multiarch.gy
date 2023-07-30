@@ -26,9 +26,10 @@
 // --
 pipeline {
 	agent none
-options {
-							timestamps()
-						}
+	options {
+		timestamps()
+	}
+
 	environment {
 		GITEA_API_KEY = credentials('gitea_jenkins_api_token')
 		GITEA_REPO_ARM64 = 'gitea.com/ivangotoy/docker_images_arm64.git'
