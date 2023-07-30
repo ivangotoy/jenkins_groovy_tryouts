@@ -175,7 +175,7 @@ pipeline {
 							sh "echo $PASSWORD | docker login -u $USERNAME --password-stdin $registryURL"
 						}
 
-						sh "docker push $registryURL/$imageName1 && docker push $registryURL/$imageName2 && docker push $registryURL/$imageName3 && docker push $registryURL/$imageName4"
+						sh "docker image push -q $registryURL/$imageName1 && docker image push -q $registryURL/$imageName2 && docker image push -q $registryURL/$imageName3 && docker image push -q $registryURL/$imageName4"
 					}
 				}
 
@@ -191,7 +191,7 @@ pipeline {
 							sh "echo $PASSWORD | docker login -u $USERNAME --password-stdin $registryURL"
 						}
 
-						sh "docker push $registryURL/$imageName5 && docker push $registryURL/$imageName6 && docker push $registryURL/$imageName7 && docker push $registryURL/$imageName8"
+						sh "docker image push -q $registryURL/$imageName5 && docker image push -q $registryURL/$imageName6 && docker image push -q $registryURL/$imageName7 && docker image push -q $registryURL/$imageName8"
 					}
 				}
 			}
