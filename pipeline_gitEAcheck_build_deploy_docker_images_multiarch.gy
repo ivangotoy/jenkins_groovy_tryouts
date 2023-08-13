@@ -12,6 +12,8 @@
 // --
 // -- BUILD ARM64 AND AMD64 DOCKER IMAGES - IN PARALLEL
 // --
+// -- UTILIZE MOBY BUILDKIT WITH DOCKER BUILDX BUILD - GUEST STARRING CACHE-TO AND CACHE-FROM 
+// --
 // -- PUSH ARM64 AND AMD64 TO A PRIVATE DOCKER REGISTRY NOT LEAKING ANY PRIVATE DATA - IN PARALLEL
 // --
 // -- FOR LESS THAN 25 MINUTES (MOST SPENT ON BUILDING ON RPI4) YOU CAN HAVE NOT 1 BUT 3 DOCKER IMAGES FOR YOUR PROJECTS.  
@@ -36,14 +38,22 @@ pipeline {
 		GITEA_REPO_AMD64 = 'gitea.com/ivangotoy/docker_images_amd64.git'
 		registryURL = "digtvbg.com:5000"
 		credentialsID = "docker_registry_digtvbg_5000_credentials"
-		imageName1 = "ob2-ubuntu-image-arm64"
-		imageName2 = "q3e-ded-arm64"
-		imageName3 = "v2raya-ubuntu-arm64"
-		imageName4 = "dnscrypt-v2-ubuntu-arm64"
-		imageName5 = "ob2-ubuntu-image-amd64"
-		imageName6 = "q3e-ded-amd64"
-		imageName7 = "v2raya-ubuntu-amd64"
-		imageName8 = "dnscrypt-v2-ubuntu-amd64"
+		arch1 = "arm64"
+		arch2 = "amd64"
+		cache = "--cache-to=type=local,dest=/var/lib/jenkins/workspace/buildx-cache --cache-from=type=local,src=/var/lib/jenkins/workspace/buildx-cache"
+		pathob1 = "docker_images_arm64/ARM64/ob2-ubuntu-image"
+		pathq1 = "docker_images_arm64/ARM64/quake3-ubuntu-image"
+		pathv1 = "docker_images_arm64/ARM64/v2raya-ubuntu-image"
+		pathdns1 = "docker_images_arm64/ARM64/dnscrypt-v2-ubuntu-image"
+		pathob2 = "docker_images_amd64/AMD64/ob2-ubuntu-image"
+		pathq2 = "docker_images_amd64/AMD64/quake3-ubuntu-image"
+		pathv2 = "docker_images_amd64/AMD64/v2raya-ubuntu-image"
+		pathdns2 = "docker_images_amd64/AMD64/dnscrypt-v2-ubuntu-image"
+		product1 = "ob2-ubuntu-image"
+		product2 = "q3e-ded"
+		product3 = "v2raya-ubuntu"
+		product4 = "dnscrypt-v2-ubuntu"
+
 	}
 
 	stages {
@@ -121,19 +131,24 @@ pipeline {
 					steps {
 						sh 'docker kill $(docker ps -q) || true'
 						sh 'sleep 10'
-						sh 'docker system prune -af'
-						sh 'docker pull -q --platform=linux/arm64 ubuntu:rolling'
-						sh 'docker build -q -t $imageName1 docker_images_arm64/ARM64/ob2-ubuntu-image'
-						sh 'docker tag $imageName1 $registryURL/$imageName1'
-						sh 'docker build -q -t $imageName2 docker_images_arm64/ARM64/quake3-ubuntu-image'
-						sh 'docker tag $imageName2 $registryURL/$imageName2'
-						sh 'docker build -q -t $imageName3 docker_images_arm64/ARM64/v2raya-ubuntu-image'
-						sh 'docker tag $imageName3 $registryURL/$imageName3'
-						sh 'docker build -q -t $imageName4 docker_images_arm64/ARM64/dnscrypt-v2-ubuntu-image'
-						sh 'docker tag $imageName4 $registryURL/$imageName4'
-						sh 'docker run -q --restart=always -p 5353:5353 --add-host=host.docker.internal:host-gateway --name "DNSCRYPT-PROXY-V2" -dit $imageName4'
-						sh 'docker run -q --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $imageName2 q3cpma'
-						sh 'docker run -q --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $imageName2 quake3'
+						sh 'docker rm $(docker ps -a -f status=exited -q)'
+						sh 'docker rmi -f $registryURL/$product1-$arch1 $registryURL/$product2-$arch1 $registryURL/$product3-$arch1 $registryURL/$product4-$arch1 $product1-$arch1 $product2-$arch1 $product3-$arch1 $product4-$arch1 || true'
+						sh 'docker pull -q --platform=linux/$arch1 ubuntu:rolling'
+						sh 'docker pull -q --platform=linux/$arch1 moby/buildkit:nightly'
+						sh 'docker buildx rm $arch1 || true'
+						sh 'docker buildx create --bootstrap --platform linux/$arch1 --driver-opt image=moby/buildkit:nightly --name $arch1 --use'
+						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch1 -t $product1-$arch1 $cache $pathob1'
+						sh 'docker tag $product1-$arch1 $registryURL/$product1-$arch1'
+						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch1 -t $product2-$arch1 $cache $pathq1'
+						sh 'docker tag $product2-$arch1 $registryURL/$product2-$arch1'
+						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch1 -t $product3-$arch1 $cache $pathv1'
+						sh 'docker tag $product3-$arch1 $registryURL/$product3-$arch1'
+						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch1 -t $product4-$arch1 $cache $pathdns1'
+						sh 'docker tag $product4-$arch1 $registryURL/$product4-$arch1'
+						sh 'docker run -q --restart=always -p 5353:5353 --add-host=host.docker.internal:host-gateway --name "DNSCRYPT-PROXY-V2" -dit $product4-$arch1'
+						sh 'docker run -q --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $product2-$arch1 q3cpma'
+						sh 'docker run -q --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $product2-$arch1 quake3'
+						sh 'echo "CACHE SIZE IS: $(du -sh /var/lib/jenkins/workspace/buildx-cache)"'
 					}
 				}
 
@@ -146,20 +161,25 @@ pipeline {
 
 					steps {
 						sh 'docker kill $(docker ps -q) || true'
-						sh 'sleep 5'
-						sh 'docker system prune -af'
-						sh 'docker pull -q --platform=linux/amd64 ubuntu:rolling'
-						sh 'docker build -q -t $imageName5 docker_images_amd64/AMD64/ob2-ubuntu-image'
-						sh 'docker tag $imageName5 $registryURL/$imageName5'
-						sh 'docker build -q -t $imageName6 docker_images_amd64/AMD64/quake3-ubuntu-image'
-						sh 'docker tag $imageName6 $registryURL/$imageName6'
-						sh 'docker build -q -t $imageName7 docker_images_amd64/AMD64/v2raya-ubuntu-image'
-						sh 'docker tag $imageName7 $registryURL/$imageName7'
-						sh 'docker build -q -t $imageName8 docker_images_amd64/AMD64/dnscrypt-v2-ubuntu-image'
-						sh 'docker tag $imageName8 $registryURL/$imageName8'
-						sh 'docker run -q --restart=always -p 5353:5353 --add-host=host.docker.internal:host-gateway --name "DNSCRYPT-PROXY-V2" -dit $imageName8'
-						sh 'docker run -q --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $imageName6 q3cpma'
-						sh 'docker run -q --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $imageName6 quake3'
+						sh 'sleep 10'
+						sh 'docker rm $(docker ps -a -f status=exited -q)'
+						sh 'docker rmi -f $registryURL/$product1-$arch2 $registryURL/$product2-$arch2 $registryURL/$product3-$arch2 $registryURL/$product4-$arch2 $product1-$arch2 $product2-$arch2 $product3-$arch2 $product4-$arch2 || true'
+						sh 'docker pull -q --platform=linux/$arch2 ubuntu:rolling'
+						sh 'docker pull -q --platform=linux/$arch2 moby/buildkit:nightly'
+						sh 'docker buildx rm $arch2 || true'
+						sh 'docker buildx create --bootstrap --platform linux/$arch2 --driver-opt image=moby/buildkit:nightly --name $arch2 --use'
+						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch2 -t $product1-$arch2 $cache $pathob2'
+						sh 'docker tag $product1-$arch2 $registryURL/$product1-$arch2'
+						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch2 -t $product2-$arch2 $cache $pathq2'
+						sh 'docker tag $product2-$arch2 $registryURL/$product2-$arch2'
+						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch2 -t $product3-$arch2 $cache $pathv2'
+						sh 'docker tag $product3-$arch2 $registryURL/$product3-$arch2'
+						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch2 -t $product4-$arch2 $cache $pathdns2'
+						sh 'docker tag $product4-$arch2 $registryURL/$product4-$arch2'
+						sh 'docker run -q --restart=always -p 5353:5353 --add-host=host.docker.internal:host-gateway --name "DNSCRYPT-PROXY-V2" -dit $product4-$arch2'
+						sh 'docker run -q --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $product2-$arch2 q3cpma'
+						sh 'docker run -q --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $product2-$arch2 quake3'
+						sh 'echo "CACHE SIZE IS: $(du -sh /var/lib/jenkins/workspace/buildx-cache)"'
 					}
 				}
 			}
@@ -179,7 +199,7 @@ pipeline {
 							sh "echo $PASSWORD | docker login -u $USERNAME --password-stdin $registryURL"
 						}
 
-						sh "docker image push -q $registryURL/$imageName1 && docker image push -q $registryURL/$imageName2 && docker image push -q $registryURL/$imageName3 && docker image push -q $registryURL/$imageName4"
+						sh "docker image push -q $registryURL/$product1-$arch1 && docker image push -q $registryURL/$product2-$arch1 && docker image push -q $registryURL/$product3-$arch1 && docker image push -q $registryURL/$product4-$arch1"
 					}
 				}
 
@@ -195,7 +215,7 @@ pipeline {
 							sh "echo $PASSWORD | docker login -u $USERNAME --password-stdin $registryURL"
 						}
 
-						sh "docker image push -q $registryURL/$imageName5 && docker image push -q $registryURL/$imageName6 && docker image push -q $registryURL/$imageName7 && docker image push -q $registryURL/$imageName8"
+						sh "docker image push -q $registryURL/$product1-$arch2 && docker image push -q $registryURL/$product2-$arch2 && docker image push -q $registryURL/$product3-$arch2 && docker image push -q $registryURL/$product4-$arch2"
 					}
 				}
 			}
