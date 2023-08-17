@@ -1,0 +1,58 @@
+// -- A VERY SIMPLE EXAMPLE HOW TO BUILD NAVIDROME IN LINUX ON X86_64 HOST
+// --
+// -- PREREQUISITES:
+// --
+// -- 1. GOLANG MUST BE INSTALLED: BY .deb, BY OTHER MEANS, FROM SOURCE - NO FAX GIVEN
+// --
+// -- https://go.dev/doc/install
+// --
+pipeline {
+	agent {
+		label 'ryzen9'
+	}
+
+	options {
+		timestamps()
+	}
+
+	environment {
+		PATH = "/usr/local/go/bin:${env.PATH}"
+		GOOS = "linux"
+		GOARCH = "amd64"
+	}
+
+	stages {
+		stage('PHASE1: CLEAN AMD64') {
+			steps {
+				script {
+					deleteDir()
+				}
+			}
+		}
+
+		stage('PHASE2: GIT CLONE GORELEASER') {
+			steps {
+
+				sh "git clone --quiet --depth 1 -b main --single-branch https://github.com/goreleaser/goreleaser"
+			}
+		}
+
+		stage('PHASE3: BUILD GORELEASER') {
+			steps {
+				dir('goreleaser') {
+					sh "go mod tidy"
+					sh "go build -o goreleaser ."
+					sh "strip -s goreleaser"
+				}
+			}
+		}
+
+		stage('PHASE4: DEPLOY GORELEASER SYSTEMWIDE') {
+			steps {
+				dir('goreleaser') {
+					sh "sudo cp goreleaser /usr/local/bin"
+				}
+			}
+		}
+	}
+}
