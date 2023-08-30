@@ -24,7 +24,7 @@ pipeline {
 		prod1 = "openbullet2:latest"
 		prod2 = "quake3e:latest"
 		prod3 = "v2raya:latest"
-		prod4 = "dnscrypt"
+		prod4 = "dnscrypt:latest"
 		buildcmd = "docker buildx build -q --no-cache --push --platform linux/amd64,linux/arm64 -t $registryURL/"
 
 	}
