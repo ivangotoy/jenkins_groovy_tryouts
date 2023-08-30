@@ -1,223 +1,67 @@
 // -- README:
-// --
-// -- TWO JENKINS NODES: 1. MASTER RPI4 (AARCH64) AND 2. AMD RYZEN PC (X86_64)
-// --
-// -- GITEA NOT GITHUB BASED GIT REPOSITORIES FOR DOCKER AS CONTENT AS CODE
-// --
-// -- 4 DOCKER IMAGES: 1. QUAKE3 SERVER | 2. V2RAYA 20 CONFIGURED PROXIES TUNNES UP & RUNNING WITH WEB INTERFACE 3. OPENBULLET2 CONSOLE VERSION IN LINUX 4. DNSCRYPT PROXY V2
-// --
-// -- CLEANUP WORKSPACES - IN PARALLEL
-// --
-// -- CHECKOUT ARM64 AND AMD64 REPOS (FROM GITEA) - IN PARALLEL
-// --
-// -- BUILD ARM64 AND AMD64 DOCKER IMAGES - IN PARALLEL
-// --
-// -- UTILIZE MOBY BUILDKIT WITH DOCKER BUILDX BUILD - GUEST STARRING CACHE-TO AND CACHE-FROM 
-// --
-// -- PUSH ARM64 AND AMD64 TO A PRIVATE DOCKER REGISTRY NOT LEAKING ANY PRIVATE DATA - IN PARALLEL
-// --
-// -- FOR LESS THAN 25 MINUTES (MOST SPENT ON BUILDING ON RPI4) YOU CAN HAVE NOT 1 BUT 3 DOCKER IMAGES FOR YOUR PROJECTS.  
-// --
-// -- SEE THIS REFERENCE IMAGE (IN THIS GITHUB REPO):
-// --
-// -- pipeline_gitEAcheck_build_deploy_docker_images_multiarch.png
-// --
-// -- FURTHER READING ON THESE 4 PARTICULAR DOCKER IMAGES HERE:
-// --
+// -- RTFM:
 // -- https://digtvbg.com/files/MEDIA/DOCKER-INFO.txt
-// --
 pipeline {
-	agent none
+	agent {
+		node {
+			label 'ryzen9'
+		}
+	}
+
 	options {
 		timestamps()
 	}
 
 	environment {
 		GITEA_API_KEY = credentials('gitea_jenkins_api_token')
-		GITEA_REPO_ARM64 = 'gitea.com/ivangotoy/docker_images_arm64.git'
-		GITEA_REPO_AMD64 = 'gitea.com/ivangotoy/docker_images_amd64.git'
+		GITEA_REPO = 'gitea.com/ivangotoy/docker_images.git'
 		registryURL = "digtvbg.com:5000"
 		credentialsID = "docker_registry_digtvbg_5000_credentials"
-		arch1 = "arm64"
-		arch2 = "amd64"
-		cache = "--cache-to=type=local,dest=/var/lib/jenkins/workspace/buildx-cache --cache-from=type=local,src=/var/lib/jenkins/workspace/buildx-cache"
-		pathob1 = "docker_images_arm64/ARM64/ob2-ubuntu-image"
-		pathq1 = "docker_images_arm64/ARM64/quake3-ubuntu-image"
-		pathv1 = "docker_images_arm64/ARM64/v2raya-ubuntu-image"
-		pathdns1 = "docker_images_arm64/ARM64/dnscrypt-v2-ubuntu-image"
-		pathob2 = "docker_images_amd64/AMD64/ob2-ubuntu-image"
-		pathq2 = "docker_images_amd64/AMD64/quake3-ubuntu-image"
-		pathv2 = "docker_images_amd64/AMD64/v2raya-ubuntu-image"
-		pathdns2 = "docker_images_amd64/AMD64/dnscrypt-v2-ubuntu-image"
-		product1 = "ob2-ubuntu-image"
-		product2 = "q3e-ded"
-		product3 = "v2raya-ubuntu"
-		product4 = "dnscrypt-v2-ubuntu"
+		path1 = "docker_images/openbullet2"
+		path2 = "docker_images/quake3e"
+		path3 = "docker_images/v2raya"
+		path4 = "docker_images/dnscrypt"
+		prod1 = "openbullet2:latest"
+		prod2 = "quake3e:latest"
+		prod3 = "v2raya:latest"
+		prod4 = "dnscrypt"
+		buildcmd = "docker buildx build -q --no-cache --push --platform linux/amd64,linux/arm64 -t $registryURL/"
 
 	}
 
 	stages {
-		stage('Parallel Workspace Clean') {
-			parallel {
-				stage('Clean ARM64') {
-					agent {
-						node {
-							label 'rpi4'
-						}
-					}
-
-					steps {
-						script {
-							deleteDir()
-						}
-					}
-				}
-
-				stage('Clean AMD64') {
-					agent {
-						node {
-							label 'ryzen9'
-						}
-					}
-
-					steps {
-						script {
-							deleteDir()
-						}
-					}
+		stage('Clean WORKSPACE') {
+			steps {
+				script {
+					deleteDir()
 				}
 			}
 		}
 
-		stage('Parallel clone from GITEA') {
-			parallel {
-				stage('Clone ARM64') {
-					agent {
-						node {
-							label 'rpi4'
-						}
-					}
-
-					steps {
-						sh "git config --global http.postBuffer 157286400"
-						sh "git clone --quiet --depth 1 -b main --single-branch https://${GITEA_API_KEY}@${GITEA_REPO_ARM64}"
-					}
-				}
-
-				stage('Clone AMD64') {
-					agent {
-						node {
-							label 'ryzen9'
-						}
-					}
-
-					steps {
-						sh "git config --global http.postBuffer 157286400"
-						sh "git clone --quiet --depth 1 -b main --single-branch https://${GITEA_API_KEY}@${GITEA_REPO_AMD64}"
-					}
-				}
+		stage('Clone from GITEA') {
+			steps {
+				sh "git config --global http.postBuffer 157286400"
+				sh "git clone --quiet --depth 1 -b main --single-branch https://${GITEA_API_KEY}@${GITEA_REPO}"
 			}
 		}
 
-		stage('Parallel build ARM64 and AMD64') {
-			parallel {
-				stage('Build ARM64') {
-					agent {
-						node {
-							label 'rpi4'
-						}
-					}
-
-					steps {
-						sh 'docker kill $(docker ps -q) || true'
-						sh 'sleep 10'
-						sh 'docker rm $(docker ps -a -f status=exited -q)'
-						sh 'docker rmi -f $registryURL/$product1-$arch1 $registryURL/$product2-$arch1 $registryURL/$product3-$arch1 $registryURL/$product4-$arch1 $product1-$arch1 $product2-$arch1 $product3-$arch1 $product4-$arch1 || true'
-						sh 'docker pull -q --platform=linux/$arch1 ubuntu:rolling'
-						sh 'docker pull -q --platform=linux/$arch1 moby/buildkit:nightly'
-						sh 'docker buildx rm $arch1 || true'
-						sh 'docker buildx create --bootstrap --platform linux/$arch1 --driver-opt image=moby/buildkit:nightly --name $arch1 --use'
-						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch1 -t $product1-$arch1 $cache $pathob1'
-						sh 'docker tag $product1-$arch1 $registryURL/$product1-$arch1'
-						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch1 -t $product2-$arch1 $cache $pathq1'
-						sh 'docker tag $product2-$arch1 $registryURL/$product2-$arch1'
-						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch1 -t $product3-$arch1 $cache $pathv1'
-						sh 'docker tag $product3-$arch1 $registryURL/$product3-$arch1'
-						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch1 -t $product4-$arch1 $cache $pathdns1'
-						sh 'docker tag $product4-$arch1 $registryURL/$product4-$arch1'
-						sh 'docker run -q --restart=always -p 5353:5353 --add-host=host.docker.internal:host-gateway --name "DNSCRYPT-PROXY-V2" -dit $product4-$arch1'
-						sh 'docker run -q --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $product2-$arch1 q3cpma'
-						sh 'docker run -q --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $product2-$arch1 quake3'
-						sh 'echo "CACHE SIZE IS: $(du -sh /var/lib/jenkins/workspace/buildx-cache)"'
-					}
+		stage('Build and Push MULTIARCH images') {
+			steps {
+				withCredentials([usernamePassword(credentialsId: credentialsID, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+					sh "echo $PASSWORD | docker login -u $USERNAME --password-stdin $registryURL"
 				}
 
-				stage('Build AMD64') {
-					agent {
-						node {
-							label 'ryzen9'
-						}
-					}
-
-					steps {
-						sh 'docker kill $(docker ps -q) || true'
-						sh 'sleep 10'
-						sh 'docker rm $(docker ps -a -f status=exited -q)'
-						sh 'docker rmi -f $registryURL/$product1-$arch2 $registryURL/$product2-$arch2 $registryURL/$product3-$arch2 $registryURL/$product4-$arch2 $product1-$arch2 $product2-$arch2 $product3-$arch2 $product4-$arch2 || true'
-						sh 'docker pull -q --platform=linux/$arch2 ubuntu:rolling'
-						sh 'docker pull -q --platform=linux/$arch2 moby/buildkit:nightly'
-						sh 'docker buildx rm $arch2 || true'
-						sh 'docker buildx create --bootstrap --platform linux/$arch2 --driver-opt image=moby/buildkit:nightly --name $arch2 --use'
-						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch2 -t $product1-$arch2 $cache $pathob2'
-						sh 'docker tag $product1-$arch2 $registryURL/$product1-$arch2'
-						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch2 -t $product2-$arch2 $cache $pathq2'
-						sh 'docker tag $product2-$arch2 $registryURL/$product2-$arch2'
-						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch2 -t $product3-$arch2 $cache $pathv2'
-						sh 'docker tag $product3-$arch2 $registryURL/$product3-$arch2'
-						sh 'docker buildx build -q --build-arg BUILDKIT_MULTI_PLATFORM=0 --load --platform linux/$arch2 -t $product4-$arch2 $cache $pathdns2'
-						sh 'docker tag $product4-$arch2 $registryURL/$product4-$arch2'
-						sh 'docker run -q --restart=always -p 5353:5353 --add-host=host.docker.internal:host-gateway --name "DNSCRYPT-PROXY-V2" -dit $product4-$arch2'
-						sh 'docker run -q --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit $product2-$arch2 q3cpma'
-						sh 'docker run -q --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit $product2-$arch2 quake3'
-						sh 'echo "CACHE SIZE IS: $(du -sh /var/lib/jenkins/workspace/buildx-cache)"'
-					}
-				}
-			}
-		}
-
-		stage('Parallel PUSH to Registry') {
-			parallel {
-				stage('Push ARM64') {
-					agent {
-						node {
-							label 'rpi4'
-						}
-					}
-
-					steps {
-						withCredentials([usernamePassword(credentialsId: credentialsID, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-							sh "echo $PASSWORD | docker login -u $USERNAME --password-stdin $registryURL"
-						}
-
-						sh "docker image push -q $registryURL/$product1-$arch1 && docker image push -q $registryURL/$product2-$arch1 && docker image push -q $registryURL/$product3-$arch1 && docker image push -q $registryURL/$product4-$arch1"
-					}
-				}
-
-				stage('Push AMD64') {
-					agent {
-						node {
-							label 'ryzen9'
-						}
-					}
-
-					steps {
-						withCredentials([usernamePassword(credentialsId: credentialsID, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-							sh "echo $PASSWORD | docker login -u $USERNAME --password-stdin $registryURL"
-						}
-
-						sh "docker image push -q $registryURL/$product1-$arch2 && docker image push -q $registryURL/$product2-$arch2 && docker image push -q $registryURL/$product3-$arch2 && docker image push -q $registryURL/$product4-$arch2"
-					}
-				}
+				sh 'docker kill $(docker ps -q) || true'
+				sh 'sleep 7'
+				sh 'docker rm $(docker ps -a -f status=exited -q) || true'
+				sh 'docker system prune -af'
+				sh 'docker buildx rm amd64 || true'
+				sh 'docker buildx create --bootstrap --platform linux/amd64 --driver-opt image=moby/buildkit:nightly --name amd64 --use'
+				sh 'docker buildx prune -f'
+				sh '${buildcmd}${prod1} $path1'
+				sh '${buildcmd}${prod2} $path2'
+				sh '${buildcmd}${prod3} $path3'
+				sh '${buildcmd}${prod4} $path4'
 			}
 		}
 	}
