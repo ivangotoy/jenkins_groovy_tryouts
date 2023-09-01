@@ -17,15 +17,7 @@ pipeline {
 		GITEA_REPO = 'gitea.com/ivangotoy/docker_images.git'
 		registryURL = "digtvbg.com:5000"
 		credentialsID = "docker_registry_digtvbg_5000_credentials"
-		path1 = "docker_images/openbullet2"
-		path2 = "docker_images/quake3e"
-		path3 = "docker_images/v2raya"
-		path4 = "docker_images/dnscrypt"
-		prod1 = "openbullet2:latest"
-		prod2 = "quake3e:latest"
-		prod3 = "v2raya:latest"
-		prod4 = "dnscrypt:latest"
-		buildcmd = "docker buildx build -q --no-cache --push --platform linux/amd64,linux/arm64 -t $registryURL/"
+		buildcmd = "docker buildx bake --push --no-cache"
 
 	}
 
@@ -58,10 +50,17 @@ pipeline {
 				sh 'docker buildx rm amd64 || true'
 				sh 'docker buildx create --bootstrap --platform linux/amd64 --driver-opt image=moby/buildkit:nightly --name amd64 --use'
 				sh 'docker buildx prune -f'
-				sh '${buildcmd}${prod1} $path1'
-				sh '${buildcmd}${prod2} $path2'
-				sh '${buildcmd}${prod3} $path3'
-				sh '${buildcmd}${prod4} $path4'
+				dir('docker_images') {
+					sh '$buildcmd'
+				}
+			}
+		}
+
+		stage('LAST Clean WORKSPACE') {
+			steps {
+				script {
+					deleteDir()
+				}
 			}
 		}
 	}
