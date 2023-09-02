@@ -51,11 +51,10 @@ pipeline {
 				sh 'docker buildx create --bootstrap --platform linux/amd64 --driver-opt image=moby/buildkit:nightly --name amd64 --use'
 				sh 'docker buildx prune -f'
 				dir('docker_images') {
-					sh '$buildcmd'
+				sh '$buildcmd'
 				}
 			}
 		}
-
 		stage('LAST Clean WORKSPACE') {
 			steps {
 				script {
