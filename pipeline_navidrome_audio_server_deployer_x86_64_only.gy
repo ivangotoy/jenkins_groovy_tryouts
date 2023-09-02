@@ -1,15 +1,3 @@
-// -- A VERY SIMPLE EXAMPLE HOW TO BUILD NAVIDROME IN LINUX ON X86_64 HOST
-// --
-// -- PREREQUISITES:
-// --
-// -- 1. GORELEASER MUST BE INSTALLED: BY .deb, BY OTHER MEANS, FROM SOURCE - NO FAX GIVEN
-// --
-// -- https://goreleaser.com/install/
-// --
-// -- 2. NODEJS INSTALLED
-// --
-// -- https://nodejs.org/en/download/package-manager
-// --
 pipeline {
 	agent {
 		label 'ryzen9'
@@ -46,6 +34,7 @@ pipeline {
 					sh "sed -i '7 a - GOFLAGS=-buildvcs=false' .goreleaser.yml"
 					sh "sed -i '8 s/^/      /' .goreleaser.yml"
 					sh "goreleaser build --clean --snapshot --single-target --id navidrome_linux_amd64"
+					sh "upx -9 -q dist/navidrome_linux_amd64_linux_amd64_v1/navidrome"
 				}
 			}
 		}
