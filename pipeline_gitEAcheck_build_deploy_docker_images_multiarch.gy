@@ -52,6 +52,7 @@ pipeline {
 				sh 'docker buildx prune -f'
 				dir('docker_images') {
 				sh '$buildcmd'
+				sh 'docker buildx prune -f'
 				}
 			}
 		}
