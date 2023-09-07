@@ -2,33 +2,37 @@ pipeline {
 	agent {
 		label 'ryzen9'
 	}
+
 	options {
 		timestamps()
+		skipDefaultCheckout(true)
 	}
+
 	environment {
-	    PATH = "/usr/local/go/bin:${env.PATH}"
+		PATH = "/usr/local/go/bin:${env.PATH}"
 		GOOS = "linux"
 		GOARCH = "amd64"
 		router = 'root@192.168.1.1'
 		CREDENTIALS_ID = 'ryzen9'
 	}
+
 	stages {
 		stage('PHASE1: CLEAN AMD64') {
 			steps {
-				script {
-					deleteDir()
-				}
+				cleanWs(deleteDirs: true, disableDeferredWipeout: true)
 			}
 		}
-			stage('PHASE2: GIT CLONE NAVIDROME') {
-				steps {
 
-					sh "git clone --quiet --depth 1 -b master --single-branch https://github.com/navidrome/navidrome.git"
-				}
+		stage('PHASE2: GIT CLONE NAVIDROME') {
+			steps {
+
+				sh "git clone --quiet --depth 1 -b master --single-branch https://github.com/navidrome/navidrome.git"
 			}
-			stage('PHASE3: BUILD NAVIDROME') {
-				steps {
-                    dir('navidrome'){
+		}
+
+		stage('PHASE3: BUILD NAVIDROME') {
+			steps {
+				dir('navidrome') {
 					sh "make setup"
 					sh "make buildjs"
 					sh "sed -i '7 a - GOFLAGS=-buildvcs=false' .goreleaser.yml"
@@ -38,13 +42,20 @@ pipeline {
 				}
 			}
 		}
-			stage('PHASE4: DEPLOY NAVIDROME ON PROD INFRA') {
-				steps {
-				    dir('navidrome'){
+
+		stage('PHASE4: DEPLOY NAVIDROME ON PROD INFRA') {
+			steps {
+				dir('navidrome') {
 					sh "rsync -avPz dist/navidrome_linux_amd64_linux_amd64_v1/navidrome root@router:/mnt/sdb1/Music"
 					sh "ssh root@router '/mnt/sdb1/navi-update'"
-    				}
-	    		}
-		    }
-	    }
-    }
+				}
+			}
+		}
+
+		stage('PAHESE5: LAST Clean WORKSPACE') {
+			steps {
+				cleanWs(deleteDirs: true, disableDeferredWipeout: true)
+			}
+		}
+	}
+}
