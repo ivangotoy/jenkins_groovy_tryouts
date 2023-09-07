@@ -30,27 +30,20 @@ pipeline {
 			}
 		}
 
-		stage('PHASE3: BUILD NAVIDROME') {
+		stage('PHASE3: BUILD AND DEPLOY NAVIDROME') {
 			steps {
 				dir('navidrome') {
-					sh "make setup"
-					sh "make buildjs"
-					sh "goreleaser build --clean --snapshot --single-target --id navidrome_linux_amd64"
-					sh "upx -9 -q dist/navidrome_linux_amd64_linux_amd64_v1/navidrome"
-				}
-			}
-		}
-
-		stage('PHASE4: DEPLOY NAVIDROME ON PROD INFRA') {
-			steps {
-				dir('navidrome') {
-					sh "rsync -avPz dist/navidrome_linux_amd64_linux_amd64_v1/navidrome root@router:/mnt/sdb1/Music"
+					sh 'make setup'
+					sh 'make buildjs'
+					sh 'goreleaser build --clean --snapshot --single-target --id navidrome_linux_amd64'
+					sh 'upx -9 -q dist/navidrome_linux_amd64_linux_amd64_v1/navidrome'
+					sh 'rsync -avPz dist/navidrome_linux_amd64_linux_amd64_v1/navidrome root@router:/mnt/sdb1/Music'
 					sh "ssh root@router '/mnt/sdb1/navi-update'"
 				}
 			}
 		}
 
-		stage('PHASE5: LAST Clean WORKSPACE') {
+		stage('PHASE4: LAST Clean WORKSPACE') {
 			steps {
 				cleanWs(deleteDirs: true, disableDeferredWipeout: true)
 			}
