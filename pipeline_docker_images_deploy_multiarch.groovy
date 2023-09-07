@@ -57,7 +57,7 @@ pipeline {
 					sh 'docker pull ${registryURL}/quake3e'
 					sh 'docker pull ${registryURL}/v2raya'
 					withCredentials([usernamePassword(credentialsId: credentialsID, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-						sh "echo $PASSWORD | crane auth login $registryURL -u $USERNAME -p $PASSWORD"
+						sh "echo $PASSWORD | crane auth login $registryURL -u $USERNAME --password-stdin"
 					}
 
 					sh 'crane flatten ${registryURL}/dnscrypt'
