@@ -32,8 +32,7 @@ pipeline {
 			steps {
 				dir('goreleaser') {
 					sh "go mod tidy"
-					sh "go build -o goreleaser ."
-					sh "strip -s goreleaser"
+					sh 'go build -ldflags="-s -w" -trimpath -o goreleaser .'
 					sh "upx -9 -q goreleaser"
 				}
 			}
@@ -47,7 +46,7 @@ pipeline {
 			}
 		}
 
-		stage('PAHESE5: LAST Clean WORKSPACE') {
+		stage('PHASE5: LAST Clean WORKSPACE') {
 			steps {
 				cleanWs(deleteDirs: true, disableDeferredWipeout: true)
 			}
