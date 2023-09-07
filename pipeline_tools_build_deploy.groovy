@@ -33,6 +33,7 @@ pipeline {
 		stage('PHASE3: BUILD & DEPLOY TOOLS') {
 			steps {
 				dir ('upx') {
+					sh 'git submodule update --init'
 					sh 'make build/release -j20'
 					sh 'strip -s build/release/upx'
 					sh 'upx -9 -q build/release/upx'
