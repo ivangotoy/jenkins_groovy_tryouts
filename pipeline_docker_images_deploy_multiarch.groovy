@@ -23,20 +23,20 @@ pipeline {
 	}
 
 	stages {
-		stage('Clean WORKSPACE') {
+		stage('CLEAN WORKSPACE') {
 			steps {
 				cleanWs(deleteDirs: true, disableDeferredWipeout: true)
 				}
 			}
 
-		stage('Clone from GITEA') {
+		stage('CLONE FROM GITEA') {
 			steps {
 				sh "git config --global http.postBuffer 157286400"
 				sh "git clone --quiet --depth 1 -b main --single-branch https://${GITEA_API_KEY}@${GITEA_REPO}"
 			}
 		}
 
-		stage('Build and Push MULTIARCH images') {
+		stage('BUILD DEPLOY MULTIARCH IMAGES') {
 			steps {
 				withCredentials([usernamePassword(credentialsId: credentialsID, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
 					sh "echo $PASSWORD | docker login -u $USERNAME --password-stdin $registryURL"
@@ -75,7 +75,7 @@ pipeline {
 				}
 			}
 		}
-		stage('LAST Clean WORKSPACE') {
+		stage('POST BUILD CLEAN WORKSPACE') {
 			steps {
 				cleanWs(deleteDirs: true, disableDeferredWipeout: true)
 				}
