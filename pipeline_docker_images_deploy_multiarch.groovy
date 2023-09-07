@@ -26,8 +26,8 @@ pipeline {
 		stage('CLEAN WORKSPACE') {
 			steps {
 				cleanWs(deleteDirs: true, disableDeferredWipeout: true)
-				}
 			}
+		}
 
 		stage('CLONE FROM GITEA') {
 			steps {
@@ -50,35 +50,37 @@ pipeline {
 				sh 'docker buildx create --bootstrap --platform linux/amd64 --driver-opt image=moby/buildkit:nightly --name amd64 --use'
 				sh 'docker buildx prune -f'
 				dir('docker_images') {
-				sh '$buildcmd'
-				sh 'docker buildx prune -f'
-				sh 'docker pull ${registryURL}/dnscrypt'
-				sh 'docker pull ${registryURL}/openbullet2'
-				sh 'docker pull ${registryURL}/quake3e'
-				sh 'docker pull ${registryURL}/v2raya'
-				withCredentials([usernamePassword(credentialsId: credentialsID, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-					sh "echo $PASSWORD | crane auth login $registryURL -u $USERNAME -p $PASSWORD"
-				}
-				sh 'crane flatten ${registryURL}/dnscrypt'
-				sh 'crane flatten ${registryURL}/openbullet2'
-				sh 'crane flatten ${registryURL}/quake3e'
-				sh 'crane flatten ${registryURL}/v2raya'
-                sh 'docker system prune -af'
-                sh 'docker pull digtvbg.com:5000/quake3e'
-                sh 'docker pull digtvbg.com:5000/v2raya'
-                sh 'docker pull digtvbg.com:5000/openbullet2'
-                sh 'docker pull digtvbg.com:5000/dnscrypt'
-                sh 'docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit digtvbg.com:5000/quake3e quake3'
-                sh 'docker run --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit digtvbg.com:5000/quake3e q3cpma'
-                sh 'docker run --restart=always -p 2001-2040:2001-2040 --add-host=host.docker.internal:host-gateway -dit digtvbg.com:5000/v2raya'
-                sh 'docker run --restart=always -p 5353:5353/udp --name "DNSCRYPT-PROXY-V2" -dit digtvbg.com:5000/dnscrypt'
+					sh '$buildcmd'
+					sh 'docker buildx prune -f'
+					sh 'docker pull ${registryURL}/dnscrypt'
+					sh 'docker pull ${registryURL}/openbullet2'
+					sh 'docker pull ${registryURL}/quake3e'
+					sh 'docker pull ${registryURL}/v2raya'
+					withCredentials([usernamePassword(credentialsId: credentialsID, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+						sh "echo $PASSWORD | crane auth login $registryURL -u $USERNAME -p $PASSWORD"
+					}
+
+					sh 'crane flatten ${registryURL}/dnscrypt'
+					sh 'crane flatten ${registryURL}/openbullet2'
+					sh 'crane flatten ${registryURL}/quake3e'
+					sh 'crane flatten ${registryURL}/v2raya'
+					sh 'docker system prune -af'
+					sh 'docker pull digtvbg.com:5000/quake3e'
+					sh 'docker pull digtvbg.com:5000/v2raya'
+					sh 'docker pull digtvbg.com:5000/openbullet2'
+					sh 'docker pull digtvbg.com:5000/dnscrypt'
+					sh 'docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit digtvbg.com:5000/quake3e quake3'
+					sh 'docker run --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit digtvbg.com:5000/quake3e q3cpma'
+					sh 'docker run --restart=always -p 2001-2040:2001-2040 --add-host=host.docker.internal:host-gateway -dit digtvbg.com:5000/v2raya'
+					sh 'docker run --restart=always -p 5353:5353/udp --name "DNSCRYPT-PROXY-V2" -dit digtvbg.com:5000/dnscrypt'
 				}
 			}
 		}
+
 		stage('POST BUILD CLEAN WORKSPACE') {
 			steps {
 				cleanWs(deleteDirs: true, disableDeferredWipeout: true)
-				}
 			}
 		}
 	}
+}
