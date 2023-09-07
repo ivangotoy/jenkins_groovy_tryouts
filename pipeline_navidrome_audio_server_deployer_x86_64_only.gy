@@ -35,8 +35,6 @@ pipeline {
 				dir('navidrome') {
 					sh "make setup"
 					sh "make buildjs"
-					sh "sed -i '7 a - GOFLAGS=-buildvcs=false' .goreleaser.yml"
-					sh "sed -i '8 s/^/      /' .goreleaser.yml"
 					sh "goreleaser build --clean --snapshot --single-target --id navidrome_linux_amd64"
 					sh "upx -9 -q dist/navidrome_linux_amd64_linux_amd64_v1/navidrome"
 				}
@@ -52,7 +50,7 @@ pipeline {
 			}
 		}
 
-		stage('PAHESE5: LAST Clean WORKSPACE') {
+		stage('PHASE5: LAST Clean WORKSPACE') {
 			steps {
 				cleanWs(deleteDirs: true, disableDeferredWipeout: true)
 			}
