@@ -17,7 +17,7 @@ pipeline {
 	}
 
 	stages {
-		stage('PHASE1: CLEAN WORKSPACE') {
+		stage('PHASE1: CLEAN AMD64') {
 			steps {
 				cleanWs(deleteDirs: true, disableDeferredWipeout: true)
 			}
@@ -43,7 +43,7 @@ pipeline {
 			}
 		}
 
-		stage('PHASE4: POST BUILD CLEAN WORKSPACE') {
+		stage('PHASE4: LAST Clean WORKSPACE') {
 			steps {
 				cleanWs(deleteDirs: true, disableDeferredWipeout: true)
 			}
