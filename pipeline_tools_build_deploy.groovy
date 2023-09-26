@@ -27,6 +27,7 @@ pipeline {
 				sh "git clone --quiet --depth 1 -b main --single-branch https://github.com/goreleaser/goreleaser"
 				sh "git clone --quiet --depth 1 -b devel --single-branch https://github.com/upx/upx.git"
 				sh "git clone --quiet --depth 1 -b main --single-branch https://github.com/google/go-containerregistry"
+				sh "git clone --quiet --depth 1 -b main --single-branch https://github.com/aquasecurity/trivy.git"
 			}
 		}
 
@@ -54,6 +55,12 @@ pipeline {
 					sh 'upx -9 -q dist/crane_linux_amd64_v1/crane'
 					sh 'sudo cp dist/crane_linux_amd64_v1/crane /usr/local/bin'
 				}
+
+				dir ('trivy') {
+				sh 'go mod tidy'
+				sh 'goreleaser build --clean --snapshot --single-target --id build-linux'
+				sh 'upx -9 -q dist/build-linux_linux_amd64_v1/trivy'
+				sh 'sudo cp dist/build-linux_linux_amd64_v1/trivy /usr/local/bin'
 			}
 		}
 
