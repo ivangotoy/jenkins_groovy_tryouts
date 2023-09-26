@@ -63,6 +63,7 @@ pipeline {
 				sh 'sudo cp dist/build-linux_linux_amd64_v1/trivy /usr/local/bin'
 			}
 		}
+	}
 
 		stage('PHASE4: POST BUILD CLEAN WORKSPACE') {
 			steps {
