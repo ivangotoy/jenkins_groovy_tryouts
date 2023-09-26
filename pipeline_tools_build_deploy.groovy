@@ -23,11 +23,7 @@ pipeline {
 
 		stage('PHASE2: GIT CLONE TOOLS') {
 			steps {
-
-				sh "git clone --quiet --depth 1 -b main --single-branch https://github.com/goreleaser/goreleaser"
-				sh "git clone --quiet --depth 1 -b devel --single-branch https://github.com/upx/upx.git"
-				sh "git clone --quiet --depth 1 -b main --single-branch https://github.com/google/go-containerregistry"
-				sh "git clone --quiet --depth 1 -b main --single-branch https://github.com/aquasecurity/trivy.git"
+				sh 'printf "https://github.com/goreleaser/goreleaser\nhttps://github.com/upx/upx.git\nhttps://github.com/google/go-containerregistry\nhttps://github.com/aquasecurity/trivy.git" | xargs -I{} -P4 git clone --quiet --depth 1 --single-branch {}'
 			}
 		}
 
