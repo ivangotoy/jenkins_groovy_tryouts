@@ -56,6 +56,7 @@ pipeline {
 					sh 'docker pull ${registryURL}/openbullet2'
 					sh 'docker pull ${registryURL}/quake3e'
 					sh 'docker pull ${registryURL}/v2raya'
+					sh 'docker pull ${registryURL}/mitmproxy'
 					withCredentials([usernamePassword(credentialsId: credentialsID, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
 						sh "echo $PASSWORD | crane auth login $registryURL -u $USERNAME --password-stdin"
 					}
@@ -64,15 +65,18 @@ pipeline {
 					sh 'crane flatten ${registryURL}/openbullet2'
 					sh 'crane flatten ${registryURL}/quake3e'
 					sh 'crane flatten ${registryURL}/v2raya'
+					sh 'crane flatten ${registryURL}/mitmproxy'
 					sh 'docker system prune -af'
 					sh 'docker pull digtvbg.com:5000/quake3e'
 					sh 'docker pull digtvbg.com:5000/v2raya'
 					sh 'docker pull digtvbg.com:5000/openbullet2'
 					sh 'docker pull digtvbg.com:5000/dnscrypt'
+					sh 'docker pull digtvbg.com:5000/mitmproxy'
 					sh 'docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit digtvbg.com:5000/quake3e quake3'
 					sh 'docker run --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit digtvbg.com:5000/quake3e q3cpma'
 					sh 'docker run --restart=always -p 2001-2040:2001-2040 --add-host=host.docker.internal:host-gateway -dit digtvbg.com:5000/v2raya'
 					sh 'docker run --restart=always -p 5353:5353/udp --name "DNSCRYPT-PROXY-V2" -dit digtvbg.com:5000/dnscrypt'
+					sh 'docker run --rm -it -v /home/"$USER"/mitm-proxy-certificates:/root/.mitmproxy -p 8080:8080/tcp -p 8081:8081/tcp digtvbg.com:5000/mitmproxy'
 				}
 			}
 		}
