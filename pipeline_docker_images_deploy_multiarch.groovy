@@ -76,7 +76,6 @@ pipeline {
 					sh 'docker run --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit digtvbg.com:5000/quake3e q3cpma'
 					sh 'docker run --restart=always -p 2001-2040:2001-2040 --add-host=host.docker.internal:host-gateway -dit digtvbg.com:5000/v2raya'
 					sh 'docker run --restart=always -p 5353:5353/udp --name "DNSCRYPT-PROXY-V2" -dit digtvbg.com:5000/dnscrypt'
-					sh 'docker run --rm -it -v /home/"$USER"/mitm-proxy-certificates:/root/.mitmproxy -p 8080:8080/tcp -p 8081:8081/tcp digtvbg.com:5000/mitmproxy'
 				}
 			}
 		}
