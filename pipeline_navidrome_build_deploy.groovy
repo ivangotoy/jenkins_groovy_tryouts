@@ -12,6 +12,7 @@ pipeline {
 		PATH = "/usr/local/go/bin:${env.PATH}"
 		GOOS = "linux"
 		GOARCH = "amd64"
+		GOAMD64 = "v3"
 		router = 'root@192.168.1.1'
 		CREDENTIALS_ID = 'ryzen9'
 	}
