@@ -49,6 +49,8 @@ pipeline {
 				sh 'docker buildx rm amd64 || true'
 				sh 'docker buildx create --bootstrap --platform linux/amd64 --driver-opt image=moby/buildkit:nightly --name amd64 --use'
 				sh 'docker buildx prune -f'
+				sh 'docker pull --platform=linux/amd64 ubuntu:noble'
+				sh 'docker pull --platform=linux/amd64 digtvbg.com:5000/base'
 				dir('docker_images') {
 					sh '$buildcmd'
 					sh 'docker buildx prune -f'
