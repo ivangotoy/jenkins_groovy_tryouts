@@ -34,7 +34,7 @@ pipeline {
 	  	        sh "ssh root@alder 'mkdir -p /var/www/html/files/feishin/feishin-$DATE'"
 		        sh "rsync release/build/Feishin-*-linux-x64.tar.xz release/build/Feishin-*-win-x64.exe root@alder:/var/www/html/files/feishin/feishin-$DATE/"
 		        sh 'ssh root@alder chown -R http: /var/www/html/files/feishin/'
-		        sh "find /var/www/html/files/feishin -mindepth 1 -maxdepth 1 -type d -printf '%T+ %p\\n' | sort -r | awk '{if (NR > 5) print \$2}' | xargs -r rm -r"
+		        sh "ssh root@alder find /var/www/html/files/feishin -mindepth 1 -maxdepth 1 -type d -printf '%T+ %p\\n' | sort -r | awk '{if (NR > 5) print \$2}' | xargs -r rm -r"
                     }
                 }
             }
