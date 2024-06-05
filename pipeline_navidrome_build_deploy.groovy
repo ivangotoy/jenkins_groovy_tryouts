@@ -11,7 +11,7 @@ pipeline {
         GOOS = "linux"
         GOARCH = "amd64"
         GOAMD64 = "v3"
-        router = 'root@192.168.1.1'
+        router = 'root@router'
         CREDENTIALS_ID = 'ryzen9'
     }
     stages {
@@ -43,7 +43,7 @@ pipeline {
                         sh Command5
                         sh 'goreleaser build --clean --snapshot --single-target --id navidrome_linux_amd64'
                         sh 'upx -9 -q dist/navidrome_linux_amd64_linux_amd64_v3/navidrome'
-                        sh 'rsync -avPz dist/navidrome_linux_amd64_linux_amd64_v3/navidrome root@router:/mnt/sda1/Music'
+                        sh 'rsync -aPz4 dist/navidrome_linux_amd64_linux_amd64_v3/navidrome root@router:/mnt/sda1/Music'
                         sh "ssh root@router '/mnt/sda1/NAVI-UPDATE'"
                     }
                 }
