@@ -33,7 +33,7 @@ pipeline {
 			steps {
 				dir('upx') {
 					sh 'git submodule update --init'
-					sh 'make build/release -j16'
+					sh 'make build/release -j17'
 					sh 'strip -s build/release/upx'
 					sh 'upx -9 -q build/release/upx'
 					sh 'sudo cp build/release/upx /usr/local/bin'
