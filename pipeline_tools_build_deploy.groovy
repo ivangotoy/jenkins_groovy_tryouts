@@ -24,33 +24,63 @@ pipeline {
                 cleanWs(deleteDirs: true, disableDeferredWipeout: true)
             }
         }
-
-        stage('PHASE2: GIT CLONE TOOLS') {
-            steps {
-                script {
-                    try {
-                        parallel (
-                            "Clone goreleaser": {
-                                sh "git clone --quiet --depth 1 --single-branch https://github.com/goreleaser/goreleaser"
-                            },
-                            "Clone upx": {
-                                sh "git clone --quiet --depth 1 --single-branch https://github.com/upx/upx.git"
-                            },
-                            "Clone go-containerregistry": {
-                                sh "git clone --quiet --depth 1 --single-branch https://github.com/google/go-containerregistry"
-                            },
-                            "Clone trivy": {
-                                sh "git clone --quiet --depth 1 --single-branch https://github.com/aquasecurity/trivy.git"
-                            }
-                        )
-                    } catch (Exception e) {
-                        echo "Error during cloning repositories: ${e.message}"
-                        currentBuild.result = 'FAILURE'
-                        error("Stopping pipeline due to failed git clone.")
+stage('PHASE2: GIT CLONE TOOLS') {
+    steps {
+        script {
+            parallel(
+                'goreleaser': {
+                    dir('goreleaser') {
+                        checkout([$class: 'GitSCM',
+                                  branches: [[name: 'main']],
+                                  extensions: [[$class: 'CloneOption',
+                                               depth: 1,
+                                               noTags: true,
+                                               reference: '',
+                                               shallow: true]],
+                                  userRemoteConfigs: [[url: 'https://github.com/goreleaser/goreleaser']]])
+                    }
+                },
+                'upx': {
+                    dir('upx') {
+                        checkout([$class: 'GitSCM',
+                                  branches: [[name: 'devel']],
+                                  extensions: [[$class: 'CloneOption',
+                                               depth: 1,
+                                               noTags: true,
+                                               reference: '',
+                                               shallow: true]],
+                                  userRemoteConfigs: [[url: 'https://github.com/upx/upx']]])
+                    }
+                },
+                'go-containerregistry': {
+                    dir('go-containerregistry') {
+                        checkout([$class: 'GitSCM',
+                                  branches: [[name: 'main']],
+                                  extensions: [[$class: 'CloneOption',
+                                               depth: 1,
+                                               noTags: true,
+                                               reference: '',
+                                               shallow: true]],
+                                  userRemoteConfigs: [[url: 'https://github.com/google/go-containerregistry']]])
+                    }
+                },
+                'trivy': {
+                    dir('trivy') {
+                        checkout([$class: 'GitSCM',
+                                  branches: [[name: 'main']],
+                                  extensions: [[$class: 'CloneOption',
+                                               depth: 1,
+                                               noTags: true,
+                                               reference: '',
+                                               shallow: true]],
+                                  userRemoteConfigs: [[url: 'https://github.com/aquasecurity/trivy']]])
                     }
                 }
-            }
+            )
         }
+    }
+}
+
 
         stage('PHASE3: BUILD UPX') {
             steps {

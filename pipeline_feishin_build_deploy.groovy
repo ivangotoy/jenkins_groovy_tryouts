@@ -20,14 +20,24 @@ pipeline {
         }
         stage('PHASE2: GIT CLONE FEISHIN') {
             steps {
-                checkout([$class: 'GitSCM',
-                          branches: [[name: 'development']],
-                          userRemoteConfigs: [[url: 'https://github.com/jeffvli/feishin.git']]])
+                script {
+                    dir('feishin') {
+                        checkout([$class: 'GitSCM',
+                                branches: [[name: 'development']],
+                                extensions: [[$class: 'CloneOption',
+                                            depth: 1,
+                                            noTags: true,
+                                            reference: '',
+                                            shallow: true]],
+                                userRemoteConfigs: [[url: 'https://github.com/jeffvli/feishin.git']]])
+                    }
+                }
             }
         }
         stage('PHASE3: BUILD AND DEPLOY FEISHIN') {
             steps {
                 script {
+                    dir('feishin') {
                         sh '''
                             sed -i 's/ --mac//g' package.json
                             npm ci --legacy-peer-deps
@@ -38,6 +48,7 @@ pipeline {
                         '''
                 }
             }
+        }
         }
         stage('PHASE4: LAST Clean WORKSPACE') {
             steps {
