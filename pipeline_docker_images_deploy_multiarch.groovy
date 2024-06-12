@@ -31,53 +31,61 @@ pipeline {
 
 		stage('CLONE FROM GITEA') {
 			steps {
-				sh "git config --global http.postBuffer 157286400"
-				sh "git clone --quiet --depth 1 -b main --single-branch https://${GITEA_API_KEY}@${GITEA_REPO}"
+				sh """
+				git config --global http.postBuffer 157286400
+				git clone --quiet --depth 1 -b main --single-branch https://${GITEA_API_KEY}@${GITEA_REPO}
+				"""
 			}
 		}
 
-		stage('BUILD DEPLOY MULTIARCH IMAGES') {
+		stage('BUILD DEPLOY X86_64 IMAGES') {
 			steps {
 				withCredentials([usernamePassword(credentialsId: credentialsID, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
 					sh "echo $PASSWORD | docker login -u $USERNAME --password-stdin $registryURL"
 				}
 
-				sh 'docker kill $(docker ps -q) || true'
-				sh 'sleep 7'
-				sh 'docker rm $(docker ps -a -f status=exited -q) || true'
-				sh 'docker system prune -af'
-				sh 'docker buildx rm amd64 || true'
-				sh 'docker buildx create --bootstrap --platform linux/amd64 --driver-opt image=moby/buildkit:nightly --name amd64 --use'
-				sh 'docker buildx prune -f'
-				sh 'docker pull --platform=linux/amd64 ubuntu:noble'
-				sh 'docker pull --platform=linux/amd64 digtvbg.com:5000/base'
+				sh '''
+				docker kill $(docker ps -q) || true
+				sleep 7
+				docker rm $(docker ps -a -f status=exited -q) || true
+				docker system prune -af
+				docker buildx rm amd64 || true
+				docker buildx create --bootstrap --platform linux/amd64 --driver-opt image=moby/buildkit:nightly --name amd64 --use
+				docker buildx prune -f
+				docker pull --platform=linux/amd64 ubuntu:noble
+				docker pull --platform=linux/amd64 digtvbg.com:5000/base
+				'''
 				dir('docker_images') {
-					sh '$buildcmd'
-					sh 'docker buildx prune -f'
-					sh 'docker pull ${registryURL}/dnscrypt'
-					sh 'docker pull ${registryURL}/openbullet2'
-					sh 'docker pull ${registryURL}/quake3e'
-					sh 'docker pull ${registryURL}/v2raya'
-					sh 'docker pull ${registryURL}/mitmproxy'
+					sh '''
+					$buildcmd
+					docker buildx prune -f
+					docker pull ${registryURL}/dnscrypt
+					docker pull ${registryURL}/openbullet2
+					docker pull ${registryURL}/quake3e
+					docker pull ${registryURL}/v2raya
+					docker pull ${registryURL}/mitmproxy
+					'''
 					withCredentials([usernamePassword(credentialsId: credentialsID, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
 						sh "echo $PASSWORD | crane auth login $registryURL -u $USERNAME --password-stdin"
 					}
 
-					sh 'crane flatten ${registryURL}/dnscrypt'
-					sh 'crane flatten ${registryURL}/openbullet2'
-					sh 'crane flatten ${registryURL}/quake3e'
-					sh 'crane flatten ${registryURL}/v2raya'
-					sh 'crane flatten ${registryURL}/mitmproxy'
-					sh 'docker system prune -af'
-					sh 'docker pull digtvbg.com:5000/quake3e'
-					sh 'docker pull digtvbg.com:5000/v2raya'
-					sh 'docker pull digtvbg.com:5000/openbullet2'
-					sh 'docker pull digtvbg.com:5000/dnscrypt'
-					sh 'docker pull digtvbg.com:5000/mitmproxy'
-					sh 'docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit digtvbg.com:5000/quake3e quake3'
-					sh 'docker run --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit digtvbg.com:5000/quake3e q3cpma'
-					sh 'docker run --restart=always -p 2001-2040:2001-2040 --add-host=host.docker.internal:host-gateway -dit digtvbg.com:5000/v2raya'
-					sh 'docker run --restart=always -p 5353:5353/udp --name "DNSCRYPT-PROXY-V2" -dit digtvbg.com:5000/dnscrypt'
+					sh '''
+					crane flatten ${registryURL}/dnscrypt
+					crane flatten ${registryURL}/openbullet2
+					crane flatten ${registryURL}/quake3e
+					crane flatten ${registryURL}/v2raya
+					crane flatten ${registryURL}/mitmproxy
+					docker system prune -af
+					docker pull digtvbg.com:5000/quake3e
+					docker pull digtvbg.com:5000/v2raya
+					docker pull digtvbg.com:5000/openbullet2
+					docker pull digtvbg.com:5000/dnscrypt
+					docker pull digtvbg.com:5000/mitmproxy
+					docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit digtvbg.com:5000/quake3e quake3
+					docker run --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit digtvbg.com:5000/quake3e q3cpma
+					docker run --restart=always -p 2001-2040:2001-2040 --add-host=host.docker.internal:host-gateway -dit digtvbg.com:5000/v2raya
+					docker run --restart=always -p 5353:5353/udp --name "DNSCRYPT-PROXY-V2" -dit digtvbg.com:5000/dnscrypt
+					'''
 				}
 			}
 		}

@@ -15,11 +15,22 @@ pipeline {
                 cleanWs(deleteDirs: true, disableDeferredWipeout: true)
             }
         }
-        stage('PHASE2: GIT CLONE NAVIDROME') {
-            steps {
-                sh "git clone --quiet --depth 1 -b master --single-branch https://github.com/navidrome/navidrome.git"
+stage('PHASE2: GIT CLONE NAVIDROME') {
+    steps {
+        script {
+            dir('navidrome') {
+                checkout([$class: 'GitSCM',
+                          branches: [[name: 'master']],
+                          extensions: [[$class: 'CloneOption',
+                                       depth: 1,
+                                       noTags: true,
+                                       reference: '',
+                                       shallow: true]],
+                          userRemoteConfigs: [[url: 'https://github.com/navidrome/navidrome.git']]])
             }
         }
+    }
+}
         stage('PHASE3: BUILD AND DEPLOY NAVIDROME') {
             steps {
                 dir('navidrome') {
