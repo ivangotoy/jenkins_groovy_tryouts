@@ -9,9 +9,6 @@ pipeline {
         timestamps()
         skipDefaultCheckout(true)
     }
-    environment {
-        def DATE = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy-HH-mm-ss"))
-    }
     stages {
         stage('PHASE1: CLEAN AMD64') {
             steps {
