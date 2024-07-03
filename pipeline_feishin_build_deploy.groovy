@@ -40,6 +40,7 @@ pipeline {
                     dir('feishin') {
                         sh '''
                             sed -i 's/ --mac//g' package.json
+                            npm install node-abi@latest --legacy-peer-deps 
                             npm ci --legacy-peer-deps
                             npm run package:pr
                             ssh root@alder "mkdir -p /var/www/html/files/feishin/feishin-${DATE}"
