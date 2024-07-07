@@ -58,6 +58,7 @@ pipeline {
                     docker pull ${registryURL}/quake3e
                     docker pull ${registryURL}/v2raya
                     docker pull ${registryURL}/mitmproxy
+                    docker pull ${registryURL}/openbullet2-web
                     '''
                     withCredentials([usernamePassword(credentialsId: credentialsID, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                         sh "echo $PASSWORD | crane auth login $registryURL -u $USERNAME --password-stdin"
@@ -69,16 +70,19 @@ pipeline {
                     crane flatten ${registryURL}/quake3e
                     crane flatten ${registryURL}/v2raya
                     crane flatten ${registryURL}/mitmproxy
+                    crane flatten ${registryURL}/openbullet2-web
                     docker system prune -af
                     docker pull ${registryURL}/quake3e
                     docker pull ${registryURL}/v2raya
                     docker pull ${registryURL}/openbullet2
                     docker pull ${registryURL}/dnscrypt
                     docker pull ${registryURL}/mitmproxy
-                    docker run --restart=always -p 4000:4000/udp --name "Q3dedicated" -dit ${registryURL}/quake3e quake3
-                    docker run --restart=always -p 4003:4003/udp --name "Q3CPMAded" -dit ${registryURL}/quake3e q3cpma
-                    docker run --restart=always -p 2001-2040:2001-2040 --add-host=host.docker.internal:host-gateway -dit ${registryURL}/v2raya
-                    docker run --restart=always -p 5353:5353/udp --name "DNSCRYPT-PROXY-V2" -dit ${registryURL}/dnscrypt
+                    docker pull ${registryURL}/openbullet2-web
+                    docker run --restart=unless-stopped -p 4000:4000/udp --name "Q3dedicated" -dit ${registryURL}/quake3e quake3
+                    docker run --restart=unless-stopped -p 4003:4003/udp --name "Q3CPMAded" -dit ${registryURL}/quake3e q3cpma
+                    docker run --restart=unless-stopped -p 2001-2040:2001-2040 --add-host=host.docker.internal:host-gateway -dit ${registryURL}/v2raya
+                    docker run --restart=unless-stopped -p 5353:5353/udp --name "DNSCRYPT-PROXY-V2" -dit ${registryURL}/dnscrypt
+                    docker run --restart=unless-stopped -p 5000:5000/tcp --name "OPENBULLET2-WEB" -dit ${registryURL}/openbullet2-web
                     '''
                 }
             }
