@@ -65,12 +65,6 @@ pipeline {
                     }
 
                     sh '''
-                    crane flatten ${registryURL}/dnscrypt
-                    crane flatten ${registryURL}/openbullet2
-                    crane flatten ${registryURL}/quake3e
-                    crane flatten ${registryURL}/v2raya
-                    crane flatten ${registryURL}/mitmproxy
-                    crane flatten ${registryURL}/openbullet2-web
                     docker system prune -af
                     docker pull ${registryURL}/quake3e
                     docker pull ${registryURL}/v2raya
