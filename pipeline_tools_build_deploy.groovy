@@ -24,63 +24,51 @@ pipeline {
                 cleanWs(deleteDirs: true, disableDeferredWipeout: true)
             }
         }
-stage('PHASE2: GIT CLONE TOOLS') {
-    steps {
-        script {
-            parallel(
-                'goreleaser': {
-                    dir('goreleaser') {
-                        checkout([$class: 'GitSCM',
-                                  branches: [[name: 'main']],
-                                  extensions: [[$class: 'CloneOption',
-                                               depth: 1,
-                                               noTags: true,
-                                               reference: '',
-                                               shallow: true]],
-                                  userRemoteConfigs: [[url: 'https://github.com/goreleaser/goreleaser']]])
-                    }
-                },
-                'upx': {
-                    dir('upx') {
-                        checkout([$class: 'GitSCM',
-                                  branches: [[name: 'devel']],
-                                  extensions: [[$class: 'CloneOption',
-                                               depth: 1,
-                                               noTags: true,
-                                               reference: '',
-                                               shallow: true]],
-                                  userRemoteConfigs: [[url: 'https://github.com/upx/upx']]])
-                    }
-                },
-                'go-containerregistry': {
-                    dir('go-containerregistry') {
-                        checkout([$class: 'GitSCM',
-                                  branches: [[name: 'main']],
-                                  extensions: [[$class: 'CloneOption',
-                                               depth: 1,
-                                               noTags: true,
-                                               reference: '',
-                                               shallow: true]],
-                                  userRemoteConfigs: [[url: 'https://github.com/google/go-containerregistry']]])
-                    }
-                },
-                'trivy': {
-                    dir('trivy') {
-                        checkout([$class: 'GitSCM',
-                                  branches: [[name: 'main']],
-                                  extensions: [[$class: 'CloneOption',
-                                               depth: 1,
-                                               noTags: true,
-                                               reference: '',
-                                               shallow: true]],
-                                  userRemoteConfigs: [[url: 'https://github.com/aquasecurity/trivy']]])
-                    }
-                }
-            )
-        }
-    }
-}
 
+        stage('PHASE2: GIT CLONE TOOLS') {
+            steps {
+                script {
+                    parallel(
+                        'goreleaser': {
+                            dir('goreleaser') {
+                                checkout([$class: 'GitSCM',
+                                          branches: [[name: 'main']],
+                                          extensions: [[$class: 'CloneOption',
+                                                       depth: 1,
+                                                       noTags: true,
+                                                       reference: '',
+                                                       shallow: true]],
+                                          userRemoteConfigs: [[url: 'https://github.com/goreleaser/goreleaser']]])
+                            }
+                        },
+                        'upx': {
+                            dir('upx') {
+                                checkout([$class: 'GitSCM',
+                                          branches: [[name: 'devel']],
+                                          extensions: [[$class: 'CloneOption',
+                                                       depth: 1,
+                                                       noTags: true,
+                                                       reference: '',
+                                                       shallow: true]],
+                                          userRemoteConfigs: [[url: 'https://github.com/upx/upx']]])
+                            }
+                        },
+                        'trivy': {
+                            dir('trivy') {
+                                checkout([$class: 'GitSCM',
+                                          branches: [[name: 'main']],
+                                          extensions: [[$class: 'CloneOption',
+                                                       depth: 1,
+                                                       noTags: true,
+                                                       reference: '',
+                                                       shallow: true]],
+                                          userRemoteConfigs: [[url: 'https://github.com/aquasecurity/trivy']]])
+                            }
+                        }
+                    )
+                }
+            }
+        }
 
         stage('PHASE3: BUILD UPX') {
             steps {
@@ -139,39 +127,6 @@ stage('PHASE2: GIT CLONE TOOLS') {
 
         stage('PHASE5: BUILD & DEPLOY REMAINING TOOLS') {
             parallel {
-                stage('Build Go Container Registry') {
-                    steps {
-                        script {
-                            try {
-                                dir('go-containerregistry') {
-                                    sh '''
-                                    echo "Environment Variables:"
-                                    echo "LANG=$LANG"
-                                    echo "PATH=$PATH"
-                                    echo "GOOS=$GOOS"
-                                    echo "GOARCH=$GOARCH"
-                                    echo "GOAMD64=$GOAMD64"
-                                    echo "GOEXPERIMENT=$GOEXPERIMENT"
-                                    go mod tidy
-                                    sed -i '93,100d' .goreleaser.yml
-                                    sed -i '36s/^/  goamd64:\\n/' .goreleaser.yml
-                                    sed -i '37s/^/    - v3\\n/' .goreleaser.yml
-                                    sed -i '13s/^/  - GOEXPERIMENT=newinliner\\n/' .goreleaser.yml
-                                    sed -i '17s/^/  - -pgo=auto\\n/' .goreleaser.yml
-                                    goreleaser build --clean --snapshot --single-target --id crane
-                                    upx -9 -q dist/crane_linux_amd64_v3/crane
-                                    sudo cp dist/crane_linux_amd64_v3/crane /usr/local/bin
-                                    '''
-                                }
-                            } catch (Exception e) {
-                                echo "Error during building Go Container Registry: ${e.message}"
-                                currentBuild.result = 'FAILURE'
-                                error("Stopping pipeline due to failed Go Container Registry build.")
-                            }
-                        }
-                    }
-                }
-
                 stage('Build Trivy') {
                     steps {
                         script {
@@ -214,3 +169,4 @@ stage('PHASE2: GIT CLONE TOOLS') {
         }
     }
 }
+
