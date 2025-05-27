@@ -31,12 +31,12 @@ pipeline {
             steps {
                 dir('feishin') {
                     sh '''
-                        sed -i 's/ --mac//g' package.json
-                        npm install node-abi@latest --legacy-peer-deps
-                        npm ci --legacy-peer-deps
-                        npm run package:pr
+                        cp package.json package-lock.json
+                        pnpm install
+                        pnpm run build
+                        pnpm exec electron-builder --linux --win --publish never
                         ssh root@alder "mkdir -p /var/www/html/files/feishin/feishin-${DATE}"
-                        rsync release/build/Feishin-*-linux-x64.tar.xz release/build/Feishin-*-win-x64.exe root@alder:/var/www/html/files/feishin/feishin-${DATE}/
+                        rsync dist/Feishin-*-linux-setup.tar.xz dist/Feishin-*-win-setup.exe root@alder:/var/www/html/files/feishin/feishin-${DATE}/
                         ssh root@alder 'chown -R http: /var/www/html/files/feishin/ && bash /tmp/cleanup_builds.sh'
                     '''
                 }
