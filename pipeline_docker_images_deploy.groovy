@@ -1,92 +1,88 @@
+// Builds every image in the docker_images bake file, pushes it to the private
+// registry, then recreates the long-running service containers on the agent.
+
+// name: container name, image: repository under REGISTRY/home, args: extra `docker run` flags, cmd: command
+def services = [
+    [name: 'quake3e-baseq3',  image: 'quake3e',         args: '-p 4000:4000/udp', cmd: 'quake3'],
+    [name: 'quake3e-cpma',    image: 'quake3e',         args: '-p 4003:4003/udp', cmd: 'q3cpma'],
+    [name: 'v2raya',          image: 'v2raya',          args: '-p 2001-2040:2001-2040 --add-host=host.docker.internal:host-gateway', cmd: ''],
+    [name: 'dnscrypt-proxy',  image: 'dnscrypt',        args: '-p 5353:5353/udp', cmd: ''],
+    [name: 'openbullet2-web', image: 'openbullet2-web', args: '-p 5000:5000/tcp', cmd: ''],
+]
+
 pipeline {
-    agent {
-        node {
-            label 'ryzen9'
-        }
-    }
+    agent { label 'ryzen9' }
 
     options {
         timestamps()
-        skipDefaultCheckout(true)
+        skipDefaultCheckout()
+        disableConcurrentBuilds()
+        timeout(time: 2, unit: 'HOURS')
     }
 
     environment {
-        GITEA_API_KEY = credentials('gitea_jenkins_api_token')
-        GITEA_REPO = 'gitea.com/ivangotoy/docker_images.git'
-        registryURL = "digtvbg.com:6000"
-        credentialsID = "docker_registry_digtvbg_5000_credentials"
-        buildcmd = "docker buildx bake --push --no-cache"
+        REGISTRY = 'digtvbg.com:6000'
+        SOURCE_REPO = 'https://git.digtvbg.com/ivangotoy/docker_images.git'
+        BUILDER = 'ci-amd64'
     }
 
     stages {
-        stage('Prepare Workspace') {
+        stage('Checkout') {
             steps {
-                cleanWs()
-            }
-        }
-
-        stage('Clone Repository') {
-            steps {
-                sh '''
-                git config --global http.postBuffer 157286400
-                git clone --quiet --depth 1 -b main --single-branch https://${GITEA_API_KEY}@${GITEA_REPO}
-                '''
-            }
-        }
-
-        stage('Build and Deploy Images') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: credentialsID, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                    sh "echo $PASSWORD | docker login -u $USERNAME --password-stdin $registryURL"
+                withCredentials([string(credentialsId: 'gitea_jenkins_api_token', variable: 'GIT_TOKEN')]) {
+                    sh '''
+                        git -c http.extraHeader="Authorization: token ${GIT_TOKEN}" \
+                            clone --quiet --depth 1 --branch main --single-branch "${SOURCE_REPO}" docker_images
+                    '''
                 }
+            }
+        }
 
-                sh '''
-                docker kill $(docker ps -q) || true
-                docker system prune -af
-                docker buildx rm amd64 || true
-                docker buildx create --bootstrap --platform linux/amd64 --driver-opt image=moby/buildkit:nightly --name amd64 --use
-                docker buildx prune -f
-                docker pull --platform=linux/amd64 ubuntu:noble
-                docker pull --platform=linux/amd64 digtvbg.com:6000/base
-                '''
+        stage('Registry login') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker_registry_digtvbg_5000_credentials',
+                                                  usernameVariable: 'REGISTRY_USER',
+                                                  passwordVariable: 'REGISTRY_PASSWORD')]) {
+                    sh 'echo "${REGISTRY_PASSWORD}" | docker login --username "${REGISTRY_USER}" --password-stdin "${REGISTRY}"'
+                }
+            }
+        }
+
+        stage('Build and push') {
+            steps {
                 dir('docker_images') {
                     sh '''
-                    $buildcmd
-                    docker buildx prune -f
-                    docker pull ${registryURL}/dnscrypt
-                    docker pull ${registryURL}/openbullet2
-                    docker pull ${registryURL}/quake3e
-                    docker pull ${registryURL}/v2raya
-                    docker pull ${registryURL}/mitmproxy
-                    docker pull ${registryURL}/openbullet2-web
-                    '''
-                    withCredentials([usernamePassword(credentialsId: credentialsID, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                        sh "echo $PASSWORD | crane auth login $registryURL -u $USERNAME --password-stdin"
-                    }
-
-                    sh '''
-                    docker system prune -af
-                    docker pull ${registryURL}/quake3e
-                    docker pull ${registryURL}/v2raya
-                    docker pull ${registryURL}/openbullet2
-                    docker pull ${registryURL}/dnscrypt
-                    docker pull ${registryURL}/mitmproxy
-                    docker pull ${registryURL}/openbullet2-web
-                    docker run --restart=unless-stopped -p 4000:4000/udp --name "Q3dedicated" -dit ${registryURL}/quake3e quake3
-                    docker run --restart=unless-stopped -p 4003:4003/udp --name "Q3CPMAded" -dit ${registryURL}/quake3e q3cpma
-                    docker run --restart=unless-stopped -p 2001-2040:2001-2040 --add-host=host.docker.internal:host-gateway -dit ${registryURL}/v2raya
-                    docker run --restart=unless-stopped -p 5353:5353/udp --name "DNSCRYPT-PROXY-V2" -dit ${registryURL}/dnscrypt
-                    docker run --restart=unless-stopped -p 5000:5000/tcp --name "OPENBULLET2-WEB" -dit ${registryURL}/openbullet2-web
+                        docker buildx inspect "${BUILDER}" >/dev/null 2>&1 || \
+                            docker buildx create --name "${BUILDER}" --driver docker-container --platform linux/amd64 --bootstrap
+                        docker buildx bake --builder "${BUILDER}" --pull --no-cache --push
                     '''
                 }
             }
         }
 
-        stage('Post Build Clean Workspace') {
+        stage('Deploy services') {
             steps {
-                cleanWs()
+                script {
+                    services.each { svc ->
+                        sh """
+                            docker pull ${env.REGISTRY}/home/${svc.image}
+                            docker rm --force ${svc.name} 2>/dev/null || true
+                            docker run --detach --restart unless-stopped --name ${svc.name} ${svc.args} ${env.REGISTRY}/home/${svc.image} ${svc.cmd}
+                        """
+                    }
+                }
             }
         }
     }
-}
 
+    post {
+        always {
+            sh '''
+                docker logout "${REGISTRY}" || true
+                docker buildx prune --builder "${BUILDER}" --force || true
+                docker image prune --force || true
+            '''
+            cleanWs()
+        }
+    }
+}

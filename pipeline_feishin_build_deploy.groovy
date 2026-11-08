@@ -1,52 +1,67 @@
+// Builds Feishin (development branch) for Linux and Windows and publishes the
+// installers to the alder web server, keeping the five most recent builds.
+
+def shallowCheckout(String url, String branch) {
+    checkout scmGit(branches: [[name: branch]],
+                    extensions: [cloneOption(depth: 1, noTags: true, shallow: true)],
+                    userRemoteConfigs: [[url: url]])
+}
+
 pipeline {
     agent { label 'ryzen9' }
+
     options {
         timestamps()
-        skipDefaultCheckout(true)
+        skipDefaultCheckout()
+        disableConcurrentBuilds()
+        timeout(time: 1, unit: 'HOURS')
     }
+
     environment {
-        DATE = sh(returnStdout: true, script: "date +%d-%m-%Y-%H-%M-%S").trim()
+        PUBLISH_HOST = 'root@alder'
+        PUBLISH_DIR = '/var/www/html/files/feishin'
+        KEEP_BUILDS = '5'
     }
+
     stages {
-        stage('PHASE1: CLEAN AMD64') {
-            steps {
-                cleanWs(deleteDirs: true, disableDeferredWipeout: true)
-            }
-        }
-        stage('PHASE2: GIT CLONE FEISHIN') {
+        stage('Checkout') {
             steps {
                 dir('feishin') {
-                    checkout([$class: 'GitSCM',
-                        branches: [[name: 'development']],
-                        extensions: [[$class: 'CloneOption',
-                                      depth: 1,
-                                      noTags: true,
-                                      shallow: true]],
-                        userRemoteConfigs: [[url: 'https://github.com/jeffvli/feishin.git']]
-                    ])
+                    shallowCheckout('https://github.com/jeffvli/feishin.git', 'development')
                 }
             }
         }
-        stage('PHASE3: BUILD AND DEPLOY FEISHIN') {
+
+        stage('Build') {
             steps {
                 dir('feishin') {
                     sh '''
-                        cp package.json package-lock.json
-                        pnpm install
+                        pnpm install --frozen-lockfile
                         pnpm run build
                         pnpm exec electron-builder --linux --win --publish never
-                        ssh root@alder "mkdir -p /var/www/html/files/feishin/feishin-${DATE}"
-                        rsync dist/Feishin-*-linux-setup.tar.xz dist/Feishin-*-win-setup.exe root@alder:/var/www/html/files/feishin/feishin-${DATE}/
-                        ssh root@alder 'chown -R http: /var/www/html/files/feishin/ && bash /tmp/cleanup_builds.sh'
                     '''
                 }
             }
         }
-        stage('PHASE4: LAST Clean WORKSPACE') {
+
+        stage('Publish') {
             steps {
-                cleanWs(deleteDirs: true, disableDeferredWipeout: true)
+                dir('feishin') {
+                    sh '''
+                        target="${PUBLISH_DIR}/feishin-$(date +%Y%m%d-%H%M%S)"
+                        ssh "${PUBLISH_HOST}" "mkdir -p '${target}'"
+                        rsync dist/Feishin-*-linux-setup.tar.xz dist/Feishin-*-win-setup.exe "${PUBLISH_HOST}:${target}/"
+                        ssh "${PUBLISH_HOST}" "chown -R http: '${PUBLISH_DIR}' && \
+                            ls -1dt '${PUBLISH_DIR}'/feishin-*/ | tail -n +$((KEEP_BUILDS + 1)) | xargs -r rm -rf"
+                    '''
+                }
             }
         }
     }
-}
 
+    post {
+        always {
+            cleanWs(deleteDirs: true, disableDeferredWipeout: true)
+        }
+    }
+}

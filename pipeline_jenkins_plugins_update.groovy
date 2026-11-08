@@ -1,106 +1,115 @@
+// Maintenance job: pauses all other jobs, waits for running builds to finish,
+// installs available plugin updates and restarts Jenkins if anything changed.
+// Uses the Jenkins API directly, so it must run as a trusted (unsandboxed) job.
+
+import java.util.concurrent.TimeUnit
+import jenkins.model.Jenkins
+import jenkins.model.ParameterizedJobMixIn.ParameterizedJob
+
+@NonCPS
+List<String> disableOtherJobs(String self) {
+    Jenkins.get().getAllItems(ParameterizedJob)
+        .findAll { it.fullName != self && !it.disabled }
+        .collect { job ->
+            job.disabled = true
+            job.fullName
+        }
+}
+
+@NonCPS
+void enableJobs(List<String> names) {
+    names.each { name -> Jenkins.get().getItemByFullName(name, ParameterizedJob)?.setDisabled(false) }
+}
+
+@NonCPS
+List<String> otherRunningBuilds(String self) {
+    Jenkins.get().getAllItems(hudson.model.Job)
+        .collectMany { job -> job.builds.findAll { it.building } }
+        .findAll { it.externalizableId != self }
+        .collect { it.fullDisplayName }
+}
+
+@NonCPS
+List<String> outdatedPlugins() {
+    Jenkins.get().pluginManager.plugins.findAll { it.hasUpdate() }.collect { it.shortName }
+}
+
+@NonCPS
+String installPlugin(String shortName) {
+    def plugin = Jenkins.get().updateCenter.getPlugin(shortName)
+    plugin.deploy(false).get(10, TimeUnit.MINUTES)
+    "${plugin.displayName} -> ${plugin.version}"
+}
+
+def pausedJobs = []
+def updatedPlugins = []
+
 pipeline {
-    agent { label 'ALDERLAKE' }  // Specify the ALDERLAKE agent
+    agent { label 'ALDERLAKE' }
+
+    options {
+        timestamps()
+        skipDefaultCheckout()
+        disableConcurrentBuilds()
+        timeout(time: 2, unit: 'HOURS')
+    }
+
     stages {
-        stage('Temporarily Disable All Other Jobs') {
+        stage('Pause other jobs') {
             steps {
                 script {
-                    println "Disabling all other jobs to simulate maintenance mode..."
-                    // Disable all jobs except this one to prevent new builds from starting
-                    Jenkins.instance.items.each { job ->
-                        if (job instanceof hudson.model.Job && job.fullName != env.JOB_NAME) {
-                            job.setDisabled(true)
-                            println "Disabled job: ${job.fullName}"
-                        }
-                    }
+                    pausedJobs = disableOtherJobs(env.JOB_NAME)
+                    echo "Paused ${pausedJobs.size()} job(s)"
                 }
             }
         }
-        stage('Wait for All Other Jobs to Complete') {
-            steps {
-                script {
-                    println "Waiting for all other running jobs to complete..."
-                    def currentBuildId = env.BUILD_ID
 
-                    // Function to get all builds that are currently running, excluding this build
-                    def getActiveJobs = {
-                        Jenkins.instance.getAllItems(hudson.model.Job.class).collectMany { job ->
-                            job.builds.findAll { build ->
-                                build.isBuilding() && build.getId() != currentBuildId
-                            }
+        stage('Wait for running builds') {
+            steps {
+                script {
+                    def self = currentBuild.rawBuild.externalizableId
+                    waitUntil(initialRecurrencePeriod: 10000, quiet: true) {
+                        def running = otherRunningBuilds(self)
+                        if (running) {
+                            echo "Still running: ${running.join(', ')}"
                         }
+                        running.isEmpty()
                     }
+                }
+            }
+        }
 
-                    // Initial check for active jobs
-                    def activeJobs = getActiveJobs()
-                    while (activeJobs.size() > 0) {
-                        println "Currently running jobs: ${activeJobs.collect { it.displayName }}"
-                        println "Waiting for currently running jobs to complete..."
-                        sleep 10  // Check every 10 seconds
-                        activeJobs = getActiveJobs()  // Refresh active jobs list
+        stage('Update plugins') {
+            steps {
+                script {
+                    Jenkins.get().updateCenter.updateAllSites()
+                    def outdated = outdatedPlugins()
+                    if (!outdated) {
+                        echo 'All plugins are up to date'
+                        return
                     }
-                    println "All other jobs have completed."
+                    echo "Updating: ${outdated.join(', ')}"
+                    outdated.each { name -> updatedPlugins << installPlugin(name) }
+                    echo "Installed:\n${updatedPlugins.join('\n')}"
                 }
             }
         }
-        stage('Check for Plugin Updates') {
-            steps {
-                script {
-                    println "Checking for plugin updates..."
-                    Jenkins.instance.updateCenter.updateAllSites()
-                    sleep 5  // Wait briefly for the update center to retrieve available updates
-                }
-            }
-        }
-        stage('Install Plugin Updates if Available') {
-            steps {
-                script {
-                    def outdatedPlugins = Jenkins.instance.pluginManager.plugins.findAll { it.hasUpdate() }
-                    if (outdatedPlugins) {
-                        println "The following plugins have updates available:"
-                        outdatedPlugins.each { plugin ->
-                            println "${plugin.getDisplayName()} (${plugin.getShortName()}): Current version ${plugin.getVersion()}, New version ${plugin.getUpdateVersion()}"
-                        }
+    }
 
-                        // Download and install updates
-                        println "Downloading and installing updates..."
-                        outdatedPlugins.each { plugin ->
-                            def update = Jenkins.instance.updateCenter.getPlugin(plugin.getShortName()).deploy(true)
-                            update.get(10, java.util.concurrent.TimeUnit.MINUTES)  // Wait up to 10 minutes for each update
-                            println "Updated ${plugin.getDisplayName()} to version ${plugin.getUpdateVersion()}"
-                        }
-                        println "All updates installed."
-                    } else {
-                        println "All plugins are up to date. No updates to install."
-                    }
-                }
+    post {
+        always {
+            script {
+                enableJobs(pausedJobs)
+                echo "Resumed ${pausedJobs.size()} job(s)"
             }
         }
-        stage('Re-enable All Jobs') {
-            steps {
-                script {
-                    println "Re-enabling all jobs after maintenance tasks..."
-                    // Re-enable all jobs except this one to allow new builds to start
-                    Jenkins.instance.items.each { job ->
-                        if (job instanceof hudson.model.Job && job.fullName != env.JOB_NAME) {
-                            job.setDisabled(false)
-                            println "Re-enabled job: ${job.fullName}"
-                        }
-                    }
-                }
-            }
-        }
-        stage('Restart Jenkins if Updates Installed') {
-            steps {
-                script {
-                    if (Jenkins.instance.pluginManager.plugins.any { it.hasUpdate() }) {
-                        println "Restarting Jenkins to apply updates..."
-                        Jenkins.instance.safeRestart()
-                    } else {
-                        println "Skipping restart as no updates were installed."
-                    }
+        success {
+            script {
+                if (updatedPlugins) {
+                    echo 'Scheduling a safe restart to load the updated plugins'
+                    Jenkins.get().safeRestart()
                 }
             }
         }
     }
 }
-

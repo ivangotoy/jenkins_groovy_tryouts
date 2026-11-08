@@ -1,59 +1,61 @@
+// Builds Navidrome from master as an x86-64-v3 binary and installs it on the router.
+
+def shallowCheckout(String url, String branch) {
+    checkout scmGit(branches: [[name: branch]],
+                    extensions: [cloneOption(depth: 1, noTags: true, shallow: true)],
+                    userRemoteConfigs: [[url: url]])
+}
+
 pipeline {
-    agent {
-        label 'ryzen9'
-    }
+    agent { label 'ryzen9' }
+
     options {
         timestamps()
-        skipDefaultCheckout(true)
+        skipDefaultCheckout()
+        disableConcurrentBuilds()
+        timeout(time: 1, unit: 'HOURS')
     }
+
     environment {
         PATH = "/usr/local/go/bin:${env.PATH}"
+        GOAMD64 = 'v3'
+        GOFLAGS = '-trimpath -pgo=auto'
+        DEPLOY_TARGET = 'root@router:/mnt/sda1/Music/'
     }
+
     stages {
-        stage('Clean Workspace') {
-            steps {
-                cleanWs(deleteDirs: true, disableDeferredWipeout: true)
-            }
-        }
-        stage('Checkout Navidrome Repo') {
+        stage('Checkout') {
             steps {
                 dir('navidrome') {
-                    checkout([$class: 'GitSCM',
-                              branches: [[name: 'master']],
-                              extensions: [[$class: 'CloneOption',
-                                           depth: 1,
-                                           noTags: true,
-                                           reference: '',
-                                           shallow: true]],
-                              userRemoteConfigs: [[url: 'https://github.com/navidrome/navidrome.git']]])
+                    shallowCheckout('https://github.com/navidrome/navidrome.git', 'master')
                 }
             }
         }
-        stage('Build and Deploy Navidrome') {
+
+        stage('Build') {
             steps {
                 dir('navidrome') {
-                    script {
-                        sh '''
-                          sed -i '15s/^/    goamd64:\\n/' .goreleaser.yml &&
-                          sed -i '16s/^/      - v3\\n/' .goreleaser.yml &&
-                          sed -i '15s/^/      - -trimpath\\n/' .goreleaser.yml &&
-                          sed -i '16s/^/      - -pgo=auto\\n/' .goreleaser.yml &&
-                          sed -i '9s/^/      - GOEXPERIMENT=newinliner\\n/' .goreleaser.yml &&
-                          make setup &&
-                          make buildjs &&
-                          goreleaser build --clean --snapshot --single-target --id navidrome_linux_amd64 &&
-                          upx -9 -q dist/navidrome_linux_amd64_linux_amd64_v3/navidrome &&
-                          rsync -aPz4 dist/navidrome_linux_amd64_linux_amd64_v3/navidrome root@router:/mnt/sda1/Music/
-                        '''
-                    }
+                    sh '''
+                        make setup
+                        make build
+                        upx -9 -q navidrome
+                    '''
                 }
             }
         }
-        stage('Clean Workspace After Build') {
+
+        stage('Deploy') {
             steps {
-                cleanWs(deleteDirs: true, disableDeferredWipeout: true)
+                dir('navidrome') {
+                    sh 'rsync -az --progress navidrome "${DEPLOY_TARGET}"'
+                }
             }
+        }
+    }
+
+    post {
+        always {
+            cleanWs(deleteDirs: true, disableDeferredWipeout: true)
         }
     }
 }
-
