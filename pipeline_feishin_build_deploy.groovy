@@ -38,7 +38,7 @@ pipeline {
                     sh '''
                         pnpm install --frozen-lockfile
                         pnpm run build
-                        pnpm exec electron-builder --linux --win --publish never
+                        pnpm exec electron-builder --linux tar.xz --win nsis --x64 --publish never
                     '''
                 }
             }
