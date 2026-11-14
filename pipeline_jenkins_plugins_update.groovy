@@ -34,6 +34,16 @@ List<String> outdatedPlugins() {
     Jenkins.get().pluginManager.plugins.findAll { it.hasUpdate() }.collect { it.shortName }
 }
 
+// Refreshes the update site metadata. updateAllSites() reports a rejected
+// download (bad signature, invalid data) as an error result instead of throwing,
+// so check the results; otherwise the job would compare against stale data.
+@NonCPS
+List<String> refreshUpdateSites() {
+    Jenkins.get().updateCenter.updateAllSites()
+        .findAll { it.kind == hudson.util.FormValidation.Kind.ERROR }
+        .collect { it.message }
+}
+
 // deploy() completes its Future normally even when the download or install
 // fails; the outcome is only in the job status, so check it explicitly.
 @NonCPS
@@ -87,7 +97,10 @@ pipeline {
         stage('Update plugins') {
             steps {
                 script {
-                    Jenkins.get().updateCenter.updateAllSites()
+                    def siteErrors = refreshUpdateSites()
+                    if (siteErrors) {
+                        error "Update site refresh failed: ${siteErrors.join('; ')}"
+                    }
                     def outdated = outdatedPlugins()
                     if (!outdated) {
                         echo 'All plugins are up to date'
