@@ -24,7 +24,7 @@ my homelab.
 - The plugin update job calls the Jenkins API directly, so it has to run
   unsandboxed (or with the matching script approvals).
 - Build agents need Docker with Buildx, Go, Node.js with pnpm, GNU make, UPX,
-  rsync and SSH access to the deployment hosts.
+  rsync, Git 2.31 or newer and SSH access to the deployment hosts.
 
 ## License
 

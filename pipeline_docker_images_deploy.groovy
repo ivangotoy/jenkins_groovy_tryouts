@@ -30,9 +30,13 @@ pipeline {
         stage('Checkout') {
             steps {
                 withCredentials([string(credentialsId: 'gitea_jenkins_api_token', variable: 'GIT_TOKEN')]) {
+                    // The auth header goes through GIT_CONFIG_* (git >= 2.31) instead of
+                    // `git -c`, so the token never shows up in the process list.
                     sh '''
-                        git -c http.extraHeader="Authorization: token ${GIT_TOKEN}" \
-                            clone --quiet --depth 1 --branch main --single-branch "${SOURCE_REPO}" docker_images
+                        export GIT_CONFIG_COUNT=1
+                        export GIT_CONFIG_KEY_0=http.extraHeader
+                        export GIT_CONFIG_VALUE_0="Authorization: token ${GIT_TOKEN}"
+                        git clone --quiet --depth 1 --branch main --single-branch "${SOURCE_REPO}" docker_images
                     '''
                 }
             }
