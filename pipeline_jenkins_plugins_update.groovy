@@ -34,10 +34,15 @@ List<String> outdatedPlugins() {
     Jenkins.get().pluginManager.plugins.findAll { it.hasUpdate() }.collect { it.shortName }
 }
 
+// deploy() completes its Future normally even when the download or install
+// fails; the outcome is only in the job status, so check it explicitly.
 @NonCPS
 String installPlugin(String shortName) {
     def plugin = Jenkins.get().updateCenter.getPlugin(shortName)
-    plugin.deploy(false).get(10, TimeUnit.MINUTES)
+    def job = plugin.deploy(false).get(10, TimeUnit.MINUTES)
+    if (job.status instanceof hudson.model.UpdateCenter.DownloadJob.Failure) {
+        throw new hudson.AbortException("Installing ${plugin.displayName} ${plugin.version} failed: ${job.status.problem}")
+    }
     "${plugin.displayName} -> ${plugin.version}"
 }
 
