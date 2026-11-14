@@ -25,6 +25,8 @@ my homelab.
   unsandboxed (or with the matching script approvals).
 - Build agents need Docker with Buildx, Go, Node.js with pnpm, GNU make, UPX,
   rsync, Git 2.31 or newer and SSH access to the deployment hosts.
+- The tools job installs into `/usr/local/bin` with `sudo`, so the agent user
+  needs passwordless sudo for `install`.
 
 ## License
 
