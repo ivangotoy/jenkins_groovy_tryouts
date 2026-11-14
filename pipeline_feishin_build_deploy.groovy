@@ -47,11 +47,15 @@ pipeline {
         stage('Publish') {
             steps {
                 dir('feishin') {
+                    // Upload into a hidden staging directory and rename it only after the
+                    // upload succeeded, so a failed run never leaves an empty or partial
+                    // build that the retention below would count as one of the kept builds.
                     sh '''
-                        target="${PUBLISH_DIR}/feishin-$(date +%Y%m%d-%H%M%S)"
-                        ssh "${PUBLISH_HOST}" "mkdir -p '${target}'"
-                        rsync dist/Feishin-*-linux-setup.tar.xz dist/Feishin-*-win-setup.exe "${PUBLISH_HOST}:${target}/"
-                        ssh "${PUBLISH_HOST}" "chown -R http: '${PUBLISH_DIR}' && \
+                        name="feishin-$(date +%Y%m%d-%H%M%S)"
+                        staging="${PUBLISH_DIR}/.partial-${name}"
+                        ssh "${PUBLISH_HOST}" "rm -rf '${PUBLISH_DIR}'/.partial-feishin-* && mkdir -p '${staging}'"
+                        rsync dist/Feishin-*-linux-setup.tar.xz dist/Feishin-*-win-setup.exe "${PUBLISH_HOST}:${staging}/"
+                        ssh "${PUBLISH_HOST}" "mv '${staging}' '${PUBLISH_DIR}/${name}' && chown -R http: '${PUBLISH_DIR}' && \
                             ls -1dt '${PUBLISH_DIR}'/feishin-*/ | tail -n +$((KEEP_BUILDS + 1)) | xargs -r rm -rf"
                     '''
                 }
