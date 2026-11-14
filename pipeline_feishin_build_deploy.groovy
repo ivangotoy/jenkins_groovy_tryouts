@@ -54,7 +54,7 @@ pipeline {
                         name="feishin-$(date +%Y%m%d-%H%M%S)"
                         staging="${PUBLISH_DIR}/.partial-${name}"
                         ssh "${PUBLISH_HOST}" "rm -rf '${PUBLISH_DIR}'/.partial-feishin-* && mkdir -p '${staging}'"
-                        rsync dist/Feishin-*-linux-setup.tar.xz dist/Feishin-*-win-setup.exe "${PUBLISH_HOST}:${staging}/"
+                        rsync dist/Feishin-*linux*.tar.xz dist/Feishin-*-win*.exe "${PUBLISH_HOST}:${staging}/"
                         ssh "${PUBLISH_HOST}" "mv '${staging}' '${PUBLISH_DIR}/${name}' && chown -R http: '${PUBLISH_DIR}' && \
                             ls -1dt '${PUBLISH_DIR}'/feishin-*/ | tail -n +$((KEEP_BUILDS + 1)) | xargs -r rm -rf"
                     '''
