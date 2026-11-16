@@ -62,13 +62,22 @@ List<String> refreshUpdateSites() {
 }
 
 // deploy() completes its Future normally even when the download or install
-// fails; the outcome is only in the job status, so check it explicitly.
+// fails; the outcome is only in the job status, so check it explicitly. It also
+// queues missing or outdated dependencies as separate jobs (run before the
+// plugin's own job on the same installer thread), so check every job it queued.
 @NonCPS
 String installPlugin(String shortName) {
+    def updateCenter = Jenkins.get().updateCenter
     def plugin = Jenkins.get().pluginManager.getPlugin(shortName).updateInfo
-    def job = plugin.deploy(false).get(10, TimeUnit.MINUTES)
-    if (job.status instanceof hudson.model.UpdateCenter.DownloadJob.Failure) {
-        throw new hudson.AbortException("Installing ${plugin.displayName} ${plugin.version} failed: ${job.status.problem}")
+    def lastJobId = updateCenter.jobs.collect { it.id }.max() ?: 0
+    plugin.deploy(false).get(10, TimeUnit.MINUTES)
+    def failed = updateCenter.jobs.findAll {
+        it.id > lastJobId && it instanceof hudson.model.UpdateCenter.DownloadJob &&
+            it.status instanceof hudson.model.UpdateCenter.DownloadJob.Failure
+    }
+    if (failed) {
+        throw new hudson.AbortException("Installing ${plugin.displayName} ${plugin.version} failed: " +
+            failed.collect { "${it.name}: ${it.status.problem}" }.join('; '))
     }
     "${plugin.displayName} -> ${plugin.version}"
 }
