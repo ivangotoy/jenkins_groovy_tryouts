@@ -29,9 +29,24 @@ List<String> otherRunningBuilds(String self) {
         .collect { it.fullDisplayName }
 }
 
+// Splits the available updates into the ones to install and the ones to skip.
+// An update that needs a newer Jenkins core, directly or through a dependency,
+// would install and then fail to load after the restart, so it is skipped.
 @NonCPS
-List<String> outdatedPlugins() {
-    Jenkins.get().pluginManager.plugins.findAll { it.hasUpdate() }.collect { it.shortName }
+Map<String, List<String>> pendingUpdates() {
+    def updates = [install: [], skip: []]
+    Jenkins.get().pluginManager.plugins.each { installed ->
+        def update = installed.updateInfo
+        if (update == null) {
+            return
+        }
+        if (update.isForNewerHudson() || update.isNeededDependenciesForNewerJenkins()) {
+            updates.skip << "${update.displayName} ${update.version} (needs Jenkins ${update.neededDependenciesRequiredCore})".toString()
+        } else {
+            updates.install << installed.shortName
+        }
+    }
+    updates
 }
 
 // Refreshes the update site metadata now, like "Check now" in the UI.
@@ -50,7 +65,7 @@ List<String> refreshUpdateSites() {
 // fails; the outcome is only in the job status, so check it explicitly.
 @NonCPS
 String installPlugin(String shortName) {
-    def plugin = Jenkins.get().updateCenter.getPlugin(shortName)
+    def plugin = Jenkins.get().pluginManager.getPlugin(shortName).updateInfo
     def job = plugin.deploy(false).get(10, TimeUnit.MINUTES)
     if (job.status instanceof hudson.model.UpdateCenter.DownloadJob.Failure) {
         throw new hudson.AbortException("Installing ${plugin.displayName} ${plugin.version} failed: ${job.status.problem}")
@@ -103,13 +118,16 @@ pipeline {
                     if (siteErrors) {
                         error "Update site refresh failed: ${siteErrors.join('; ')}"
                     }
-                    def outdated = outdatedPlugins()
-                    if (!outdated) {
+                    def updates = pendingUpdates()
+                    if (updates.skip) {
+                        echo "Skipping updates that need a newer Jenkins: ${updates.skip.join(', ')}"
+                    }
+                    if (!updates.install) {
                         echo 'All plugins are up to date'
                         return
                     }
-                    echo "Updating: ${outdated.join(', ')}"
-                    outdated.each { name -> updatedPlugins << installPlugin(name) }
+                    echo "Updating: ${updates.install.join(', ')}"
+                    updates.install.each { name -> updatedPlugins << installPlugin(name) }
                     echo "Installed:\n${updatedPlugins.join('\n')}"
                 }
             }
