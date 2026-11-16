@@ -23,8 +23,11 @@ my homelab.
   `docker_registry_digtvbg_5000_credentials` (username and password).
 - The plugin update job calls the Jenkins API directly, so it has to run
   unsandboxed (or with the matching script approvals).
-- Build agents need Docker with Buildx, Go, Node.js with pnpm, GNU make, UPX,
-  rsync, Git 2.31 or newer and SSH access to the deployment hosts.
+- Build agents need Docker with Buildx, Go, Node.js with pnpm, GNU make,
+  CMake 3.13 or newer and a C++ compiler (UPX build), UPX, rsync, Git 2.31 or
+  newer and SSH access to the deployment hosts.
+- The plugin update job skips updates that need a newer Jenkins core and fails
+  when a plugin or one of its dependencies cannot be installed.
 - The tools job installs into `/usr/local/bin` with `sudo`, so the agent user
   needs passwordless sudo for `install`.
 
