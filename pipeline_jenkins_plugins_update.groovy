@@ -34,12 +34,14 @@ List<String> outdatedPlugins() {
     Jenkins.get().pluginManager.plugins.findAll { it.hasUpdate() }.collect { it.shortName }
 }
 
-// Refreshes the update site metadata. updateAllSites() reports a rejected
-// download (bad signature, invalid data) as an error result instead of throwing,
-// so check the results; otherwise the job would compare against stale data.
+// Refreshes the update site metadata now, like "Check now" in the UI.
+// updateAllSites() skips every site fetched within the last day, so the job
+// would compare against stale data. A rejected download (bad signature, invalid
+// data) comes back as an error result instead of an exception, so check it.
 @NonCPS
 List<String> refreshUpdateSites() {
-    Jenkins.get().updateCenter.updateAllSites()
+    Jenkins.get().updateCenter.sites
+        .collect { it.updateDirectlyNow() }
         .findAll { it.kind == hudson.util.FormValidation.Kind.ERROR }
         .collect { it.message }
 }
