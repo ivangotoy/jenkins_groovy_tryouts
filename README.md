@@ -1,6 +1,5 @@
-> [!NOTE]
-> 🏡 **Home:** [git.digtvbg.com/ivangotoy/jenkins_groovy_tryouts](https://git.digtvbg.com/ivangotoy/jenkins_groovy_tryouts), where code, issues and releases live.
-> 🪞 **Mirror:** [github.com/ivangotoy/jenkins_groovy_tryouts](https://github.com/ivangotoy/jenkins_groovy_tryouts), read-only, synced automatically.
+> 🏠 **Home:** [git.digtvbg.com/ivangotoy/jenkins_groovy_tryouts](https://git.digtvbg.com/ivangotoy/jenkins_groovy_tryouts)\
+> 🔄 **Mirror:** [github.com/ivangotoy/jenkins_groovy_tryouts](https://github.com/ivangotoy/jenkins_groovy_tryouts) (read-only)
 
 # jenkins_groovy_tryouts
 
